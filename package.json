@@ -1,0 +1,22 @@
+{
+  "name": "cligrid",
+  "version": "1.0.0",
+  "bin": {
+    "grid": "./bin/index.js"
+  },
+  "type": "module",
+  "dependencies": {
+    "chalk": "^5.4.1",
+    "chalk-animation": "^2.0.3",
+    "commander": "^13.1.0",
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "figlet": "^1.8.0",
+    "gradient-string": "^3.0.0",
+    "inquirer": "^12.5.0",
+    "keytar": "^7.9.0",
+    "nanospinner": "^1.2.2",
+    "open": "^10.1.0",
+    "uuid": "^11.1.0"
+  }
+}
