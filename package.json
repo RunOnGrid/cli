@@ -2,7 +2,7 @@
   "name": "cligrid",
   "version": "1.0.0",
   "bin": {
-    "grid": "./bin/index.js"
+    "grid": "./src/bin/index.js"
   },
   "type": "module",
   "dependencies": {
