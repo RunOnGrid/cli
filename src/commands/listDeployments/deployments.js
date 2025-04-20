@@ -8,7 +8,6 @@ export const deploymentsCommand = new Command("deployments")
     .command("deployments ls")
     .action(async () => {
         const token = await getToken();
-        console.log(token);
         const deployments = await getDeployments(token);
         console.log(deployments);
 

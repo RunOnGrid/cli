@@ -1,6 +1,6 @@
 export const getDeployments = async (jwt) => {
     try {
-        const response = await fetch("https://backend-alpha.ongrid.run/deployments", {
+        const response = await fetch("https://backend-dev.ongrid.run/deployments", {
             method: "GET",
             headers: {
                 "Accept": "*/*",
@@ -23,7 +23,7 @@ export const getDeployments = async (jwt) => {
 
 export const getDeploymentById= async(jtw, id) =>{
     try {
-        const response = await fetch(`https://backend-alpha.ongrid.run/deployments/${id}`, {
+        const response = await fetch(`https://backend-dev.ongrid.run/deployments/${id}`, {
             method: "GET",
             headers: {
                 "Accept": "*/*",
