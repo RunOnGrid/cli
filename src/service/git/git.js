@@ -6,24 +6,90 @@ import path from 'path';
 import inquirer from "inquirer";
 import { createSpinner } from "nanospinner";
 import chalk from "chalk"
+import http from 'http';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-
-
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 const git_url = process.env.GIT_URL;
 
 export const redirectGit = async() =>{
     try {
-        console.log(process.env.GIT_URL);
-        open("https://github.com/apps/grid-connector-for-github-dev/installations/select_target")
+        const server = http.createServer();
+        
+        const port = 4000; // Fixed port to match GitHub app configuration
+        
+        server.listen(port, "127.0.0.1", () => {
+            console.log(chalk.blue('\nOpening GitHub installation page...'));
+            open("https://github.com/apps/grid-connector-for-github-dev/installations/select_target");
+        });
+
+        const spinner = createSpinner('Waiting for GitHub installation to be completed').start();
+
+        return new Promise((resolve, reject) => {
+            server.once('request', (req, res) => {
+                res.setHeader('connection', 'close');
+                const query = new URL(req.url, `http://localhost:${port}`).searchParams;
+                const installationId = query.get('installation_id');
+                const setupAction = query.get('setup_action');
+
+                if (installationId && setupAction === 'install') {
+                    res.writeHead(200, { 'Content-Type': 'text/html' });
+                    res.end(`
+                        <html>
+                            <head>
+                                <title>Installation Successful</title>
+                                <style>
+                                    body {
+                                        font-family: Arial, sans-serif;
+                                        display: flex;
+                                        justify-content: center;
+                                        align-items: center;
+                                        height: 100vh;
+                                        margin: 0;
+                                        background-color: #f5f5f5;
+                                    }
+                                    .success-message {
+                                        text-align: center;
+                                        padding: 2rem;
+                                        background: white;
+                                        border-radius: 8px;
+                                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                                    }
+                                    h1 {
+                                        color: #2ea44f;
+                                    }
+                                </style>
+                            </head>
+                            <body>
+                                <div class="success-message">
+                                    <h1>Installation Successful</h1>
+                                    <p>You can now close this window and return to the CLI.</p>
+                                </div>
+                            </body>
+                        </html>
+                    `);
+                    spinner.success({ text: 'GitHub app installation completed successfully!' });
+                    resolve(installationId);
+                } else {
+                    res.writeHead(400);
+                    res.end('Invalid installation response');
+                    spinner.error({ text: 'Installation failed or was cancelled' });
+                    reject(new Error('Invalid installation response'));
+                }
+                server.close();
+            });
+
+            server.once('error', (err) => {
+                server.close();
+                reject(new Error(`Server error: ${err.message}`));
+            });
+        });
     } catch (error) {
-        throw new error()
+        throw new Error(error);
     }
-} 
+}
 
 export const getRepositories = async() =>{
     try {
