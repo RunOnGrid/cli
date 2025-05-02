@@ -1,0 +1,113 @@
+
+import chalk from 'chalk';
+// import inquirer from "inquirer";
+import { createSpinner } from "nanospinner";
+import { getToken } from "../../../utils/auth.js";
+import { getPassword } from "../../../utils/auth.js";
+import { getSuitableNodeIps } from "../flux/fluxNodeService.js";
+import path from 'path';
+import dotenv from "dotenv"
+import inquirer from "inquirer";
+import { getBalance } from "../../getBalance.js"
+import axios from "axios"
+import { readConfigFile } from "../../../utils/authPath.js"
+// import axios from "axios";
+
+
+// Load .env from the project root
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+
+const BACKEND_URL = process.env.BACKEND_DEV_FLUX
+
+
+
+export const deployFlux = async (filePath) => {
+    try {
+        const jwt = await getToken();
+        if (!jwt) {
+            throw new Error("No authentication token found. Please login first.");
+        }
+        const config = await readConfigFile(filePath);
+
+        console.log(config);
+        
+        const dataPrice = await getPrice(config, jwt)
+        console.log(dataPrice);
+
+        const payments = await inquirer.prompt([
+            {
+                type: "choices",
+                name: "paymentAuthorized",
+                message: "Authorize payment(y/n)",
+                choices: [
+                    {
+                        name: 'y',
+                        value: true
+                    },
+                    {
+                        name: 'n',
+                        value: false
+                    }
+                ],
+            }
+        ]);
+
+        if (payments.paymentAuthorized === 'n') {
+            console.log(chalk.red("Payment cancelled"))
+            return;
+        }
+        const userBalance = await getBalance();
+        console.log(`Account Balance: $${userBalance}`);
+        if (userBalance < dataPrice) {
+            console.log(chalk.red("Please deposit credits by visiting https://ongrid.run/profile/billing or by using the CLI command grid stripe."));
+            return;
+        }
+
+
+        const spinner = createSpinner('Deploying your service...').start();
+        const response = await fetch("https://backend-dev.ongrid.run/flux", {
+            method: "POST",
+            headers: {
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${jwt}`,
+            },
+            body: JSON.stringify(config)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+        }
+        const data = await response.json();
+        if (data.informationDeploy.message == 'Insufficient balance') {
+            spinner.error({ text: "Insufficient balance, charge credits at: https://dev.ongrid.run/profile/billing" });
+            return;
+        }
+        spinner.success({ text: "Deploy successful, check your deployments for more information" });
+        console.log(data);
+
+    } catch (error) {
+        console.error("Error details:", error.message);
+        throw error;
+    }
+}
+
+async function getPrice(config, jwt) {
+    try {
+        const response = await fetch(`${process.env.BACKEND_URL_DEV}/deployments/price?cloudProvider=FLUX`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${jwt}`
+            },
+            body: JSON.stringify(config)
+        });
+        const data = await response.json();
+        return Number(data.price);
+    } catch (error) {
+        console.error("Error fetching price", error);
+        throw new Error("Failed to get price");
+    }
+}
+

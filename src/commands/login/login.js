@@ -1,8 +1,7 @@
 import { Command } from "commander";
 import inquirer from "inquirer";
 import { saveToken } from "../../utils/auth.js";
-import { gridLogin } from "../../service/gridService.js";
-import { logInOAuth } from "../../service/authServer.js";
+import { logInOAuth, gridLogin } from "../../service/authServer.js";
 
 export const login = new Command("login")
   .description("Log in using email/password or google/github")
