@@ -9,7 +9,7 @@ import path from 'path';
 import dotenv from "dotenv"
 import inquirer from "inquirer";
 import { getBalance } from "../../getBalance.js"
-import axios from "axios"
+import { getPrice } from "../../../utils/getPrice.js";
 import { readConfigFile } from "../../../utils/authPath.js"
 // import axios from "axios";
 
@@ -27,11 +27,11 @@ export const deployFlux = async (filePath) => {
         if (!jwt) {
             throw new Error("No authentication token found. Please login first.");
         }
-        const config = await readConfigFile(filePath);
+        const config = await readConfigFile(filePath, "FLUX");
 
         console.log(config);
-        
-        const dataPrice = await getPrice(config, jwt)
+
+        const dataPrice = await getPrice(config, jwt, "FLUX");
         console.log(dataPrice);
 
         const payments = await inquirer.prompt([
@@ -62,52 +62,48 @@ export const deployFlux = async (filePath) => {
             console.log(chalk.red("Please deposit credits by visiting https://ongrid.run/profile/billing or by using the CLI command grid stripe."));
             return;
         }
-
-
-        const spinner = createSpinner('Deploying your service...').start();
-        const response = await fetch("https://backend-dev.ongrid.run/flux", {
-            method: "POST",
-            headers: {
-                "Accept": "application/json",
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${jwt}`,
-            },
-            body: JSON.stringify(config)
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-        }
-        const data = await response.json();
-        if (data.informationDeploy.message == 'Insufficient balance') {
-            spinner.error({ text: "Insufficient balance, charge credits at: https://dev.ongrid.run/profile/billing" });
-            return;
-        }
-        spinner.success({ text: "Deploy successful, check your deployments for more information" });
-        console.log(data);
-
+        // const spinner = createSpinner('Deploying your service...').start();
+        // const response = await fetch("https://backend-dev.ongrid.run/flux", {
+        //     method: "POST",
+        //     headers: {
+        //         "Accept": "application/json",
+        //         "Content-Type": "application/json",
+        //         "Authorization": `Bearer ${jwt}`,
+        //     },
+        //     body: JSON.stringify(config)
+        // });
+        // const data = await response.json();
+        // if (data.informationDeploy.message == 'Insufficient balance') {
+        //     spinner.error({ text: "Insufficient balance, charge credits at: https://dev.ongrid.run/profile/billing" });
+        //     return;
+        // } else if (data.status === "success") {
+        //     spinner.success({ text: "Deploy successful, check your deployments for more information", data });
+        //     return;
+        // } else {
+        //     spinner.error({ text: "status Failed" });
+        //     return;
+        // }
     } catch (error) {
         console.error("Error details:", error.message);
         throw error;
     }
 }
 
-async function getPrice(config, jwt) {
-    try {
-        const response = await fetch(`${process.env.BACKEND_URL_DEV}/deployments/price?cloudProvider=FLUX`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${jwt}`
-            },
-            body: JSON.stringify(config)
-        });
-        const data = await response.json();
-        return Number(data.price);
-    } catch (error) {
-        console.error("Error fetching price", error);
-        throw new Error("Failed to get price");
-    }
-}
+// async function getPrice(config, jwt) {
+//     try {
+//         const response = await fetch(`${process.env.BACKEND_URL_DEV}/deployments/price?cloudProvider=FLUX`, {
+//             method: "POST",
+//             headers: {
+//                 "Content-Type": "application/json",
+//                 "Authorization": `Bearer ${jwt}`
+//             },
+//             body: JSON.stringify(config)
+//         });
+//         const data = await response.json();
+//         return Number(data.price);
+//     } catch (error) {
+//         console.error("Error fetching price", error);
+//         throw new Error("Failed to get price");
+//     }
+// }
 

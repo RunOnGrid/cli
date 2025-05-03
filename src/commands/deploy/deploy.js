@@ -1,6 +1,7 @@
 #!/user/bin/env node
 import { Command } from "commander";
 import { deployFlux } from "../../service/deployments/flux/deployServiceFlux.js";
+import { deployAkash } from "../../service/deployments/akash/deployServiceAkash.js";
 
 export const deployCommand = new Command("deploy")
   .description("Deployment commands"); // Descripción para el comando 'deploy'
@@ -17,5 +18,17 @@ const fluxSubcommand = new Command("flux")
     }
   });
 
+const akashSubcommand = new Command("akash")
+  .description("Deploy on Akash")
+  .option("--config <path>", "Path to configuration Yaml file (absolute path)")
+  .action(async (options) => {
+      try {
+        await deployAkash(options.config)
+      } catch (error) {
+        console.error(error);
+        process.exit(1)
+      }
+  })
 
+deployCommand.addCommand(akashSubcommand);
 deployCommand.addCommand(fluxSubcommand);
