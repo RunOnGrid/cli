@@ -3,7 +3,7 @@ import dotenv from "dotenv"
 import http from "http";
 import { URL, fileURLToPath } from "url";
 import { v4 as uuidv4 } from "uuid";
-import { saveToken, savePassword } from "../utils/auth.js";
+import { saveToken, savePassword } from "../utils/keyChain.js";
 import { createSpinner } from "nanospinner";
 import path from 'path';
 

@@ -1,36 +1,49 @@
 import path from "path";
 import fs from "fs/promises";
-import { getPassword } from "../utils/auth.js"; 
+import { getPassword } from "./keyChain.js"; 
 import { getSuitableNodeIps } from "../service/deployments/flux/fluxNodeService.js";
+import yaml from "js-yaml"
 
-export async function readConfigFile(filePath, provider) {
-    try {
-        const normalizedPath = filePath.replace(/\\/g, '/');
-
-        if (!path.isAbsolute(normalizedPath)) {
-            throw new Error('Only absolute paths are allowed. Please provide the full path to your config file.');
-        }
-
-        await fs.access(normalizedPath);
-
-        const fileContent = await fs.readFile(normalizedPath, 'utf8');
-
-        let config;
+    export async function readConfigFile(filePath, provider) {
         try {
-            config = JSON.parse(fileContent);
-        } catch (parseError) {
-            throw new Error(`Invalid JSON format in config file: ${parseError.message}`);
-        }
+            const normalizedPath = filePath.replace(/\\/g, '/');
 
-        let enhancedCompose;
+            if (!path.isAbsolute(normalizedPath)) {
+                throw new Error('Only absolute paths are allowed. Please provide the full path to your config file.');
+            }
+
+            await fs.access(normalizedPath);
+            
+
+            const fileContent = await fs.readFile(normalizedPath, 'utf8');
+            let config;
+
         if (provider === "FLUX") {
-             enhancedCompose = enhancedComposeFlux(config)
+            try {
+                config = JSON.parse(fileContent);
+            } catch (parseError) {
+                console.error(`Invalid JSON format for FLUX config file: ${parseError.message}`);
+                return;
+            }
+             return enhancedComposeFlux(config);
+
+        } else if (provider === "AKASH") {
+            try {
+                config = yaml.load(fileContent);
+            } catch (parseError) {
+                console.error(`Error parsing AKASH config file as YAML: ${parseError.message}`);
+                return;
+            }
+             return enhancedComposeAkash(config);
+
+        } else {
+            console.error(`Unsupported provider: ${provider}. Supported providers are "FLUX" and "AKASH".`);
+            return;
         }
        
-        return enhancedCompose;
     } catch (error) {
         console.error('Error details:', error);
-        throw new Error(`Error reading config file: ${error.message}`);
+        return;
     }
 }
 
@@ -50,18 +63,15 @@ async function enhancedComposeFlux(config){
         }
 
     } catch (error) {
-        throw new Error(`Error reading config file: ${error.message}`)
+        console.error(`Error reading config file: ${error.message}`)
     }
 }
 async function enhancedComposeAkash(config){
     try {
         const accessToken = await getPassword("Access token");
-
-        const enhancedCompose = config.compose.map(service => ({
-            ...service,
-            password: accessToken,
-        }));
-        return enhancedCompose
+        config.services["service-1"].credentials.password = accessToken
+        
+        return config;
 
     } catch (error) {
         throw new Error(`Error reading config file: ${error.message}`)

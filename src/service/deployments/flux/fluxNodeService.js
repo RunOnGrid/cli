@@ -1,5 +1,11 @@
-import chalk from "chalk"
-import axios from "axios"
+import chalk from "chalk";
+import axios from "axios";
+import dotenv from "dotenv";
+import path from 'path';
+
+
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+
 
 export async function getSuitableNodeIps(count = 10) { // Puedes hacer el conteo un parámetro con valor por defecto
     try {
@@ -33,8 +39,10 @@ export async function getSuitableNodeIps(count = 10) { // Puedes hacer el conteo
 
 
 async function getEnterpriseNodes() {
-    const enterpriseUrlNodes = `${process.env.FLUX_API_URL}/apps/enterprisenodes`;
+    
+    const enterpriseUrlNodes = `${process.env.FLUX_API_URL}apps/enterprisenodes`;
     try {
+        
         const response = await axios.get(enterpriseUrlNodes);
         if (response.data.status !== 'success') {
             throw new Error('Failed to get enterprise nodes: ' + response.data.message);

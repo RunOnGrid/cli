@@ -15,6 +15,7 @@
     "figlet": "^1.8.0",
     "gradient-string": "^3.0.0",
     "inquirer": "^12.5.0",
+    "js-yaml": "^4.1.0",
     "keytar": "^7.9.0",
     "nanospinner": "^1.2.2",
     "open": "^10.1.0",
