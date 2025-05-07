@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { getToken, deleteToken } from "../../utils/auth.js";
+import { getToken, deleteToken } from "../../utils/keyChain.js";
 
 export const logout = new Command("logout")
   .description("Delete access token from system")

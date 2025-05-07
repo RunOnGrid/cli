@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import {redirectGit, getRepositories, gridWorkflow} from "../../service/git/git.js"
-import { savePassword } from "../../utils/auth.js";
+import { savePassword } from "../../utils/keyChain.js";
 
 
 export const gitCommand = new Command("git app")

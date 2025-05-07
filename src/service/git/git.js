@@ -1,6 +1,6 @@
 import open from 'open';
 import dotenv from "dotenv"
-import {getPassword} from "../../utils/auth.js"
+import {getPassword} from "../../utils/keyChain.js"
 import { fileURLToPath } from 'url';
 import path from 'path';
 import inquirer from "inquirer";
