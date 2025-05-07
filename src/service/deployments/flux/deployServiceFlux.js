@@ -2,13 +2,13 @@
 import chalk from 'chalk';
 // import inquirer from "inquirer";
 import { createSpinner } from "nanospinner";
-import { getToken } from "../../../utils/auth.js";
-import { getPassword } from "../../../utils/auth.js";
+import { getToken } from "../../../utils/keyChain.js";
+import { getPassword } from "../../../utils/keyChain.js";
 import { getSuitableNodeIps } from "../flux/fluxNodeService.js";
 import path from 'path';
 import dotenv from "dotenv"
 import inquirer from "inquirer";
-import { getBalance } from "../../getBalance.js"
+import { getBalance } from "../../../utils/getBalance.js"
 import { getPrice } from "../../../utils/getPrice.js";
 import { readConfigFile } from "../../../utils/authPath.js"
 // import axios from "axios";
@@ -24,15 +24,16 @@ const BACKEND_URL = process.env.BACKEND_DEV_FLUX
 export const deployFlux = async (filePath) => {
     try {
         const jwt = await getToken();
-        if (!jwt) {
-            throw new Error("No authentication token found. Please login first.");
-        }
         const config = await readConfigFile(filePath, "FLUX");
 
-        console.log(config);
-
         const dataPrice = await getPrice(config, jwt, "FLUX");
-        console.log(dataPrice);
+
+        if(isNaN(dataPrice)){
+            console.error(chalk.red("Authorization Token expired, Please Log-in using(grid login --google/--github)"));
+            return;
+         }
+        console.log(chalk.green("Price: $", dataPrice.toFixed(2)));
+        
 
         const payments = await inquirer.prompt([
             {
@@ -57,32 +58,32 @@ export const deployFlux = async (filePath) => {
             return;
         }
         const userBalance = await getBalance();
-        console.log(`Account Balance: $${userBalance}`);
+
         if (userBalance < dataPrice) {
             console.log(chalk.red("Please deposit credits by visiting https://ongrid.run/profile/billing or by using the CLI command grid stripe."));
             return;
         }
-        // const spinner = createSpinner('Deploying your service...').start();
-        // const response = await fetch("https://backend-dev.ongrid.run/flux", {
-        //     method: "POST",
-        //     headers: {
-        //         "Accept": "application/json",
-        //         "Content-Type": "application/json",
-        //         "Authorization": `Bearer ${jwt}`,
-        //     },
-        //     body: JSON.stringify(config)
-        // });
-        // const data = await response.json();
-        // if (data.informationDeploy.message == 'Insufficient balance') {
-        //     spinner.error({ text: "Insufficient balance, charge credits at: https://dev.ongrid.run/profile/billing" });
-        //     return;
-        // } else if (data.status === "success") {
-        //     spinner.success({ text: "Deploy successful, check your deployments for more information", data });
-        //     return;
-        // } else {
-        //     spinner.error({ text: "status Failed" });
-        //     return;
-        // }
+        const spinner = createSpinner('Deploying your service...').start();
+        const response = await fetch("https://backend-dev.ongrid.run/flux", {
+            method: "POST",
+            headers: {
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${jwt}`,
+            },
+            body: JSON.stringify(config)
+        });
+        const data = await response.json();
+        if (data.informationDeploy.message == 'Insufficient balance') {
+            spinner.error({ text: "Insufficient balance, charge credits at: https://dev.ongrid.run/profile/billing" });
+            return;
+        } else if (data.status === "success") {
+            spinner.success({ text: "Deploy successful, check your deployments for more information", data });
+            return;
+        } else {
+            spinner.error({ text: "status Failed" });
+            return;
+        }
     } catch (error) {
         console.error("Error details:", error.message);
         throw error;

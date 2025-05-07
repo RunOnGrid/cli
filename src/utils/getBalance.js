@@ -1,5 +1,5 @@
 
-import { getToken } from "../utils/auth.js";
+import { getToken } from "./keyChain.js";
 import path from 'path';
 import dotenv from "dotenv"
 
@@ -12,12 +12,13 @@ const BACKEND_URL = process.env.BACKEND_URL_DEV;
 export const getBalance =async()=>{
     try {
         const jwt = await getToken()
-        const response = await fetch(`${BACKEND_URL}/user/balance`,{
+        const response = await fetch(`${BACKEND_URL}user/balance`,{
             method: "GET",
             headers:{
                 "Authorization": `Bearer ${jwt}`
             }
     })
+    
     const data = response.json();
     return data;
     } catch (error) {

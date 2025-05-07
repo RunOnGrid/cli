@@ -1,6 +1,14 @@
+import dotenv from "dotenv";
+import path from "path";
+
+
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+
+
 export async function getPrice(config, jwt, provider) {
     try {
-        const response = await fetch(`${process.env.BACKEND_URL_DEV}/deployments/price?cloudProvider=${provider}`, {
+        
+        const response = await fetch(`${process.env.BACKEND_URL_DEV}deployments/price?cloudProvider=${provider}`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -8,6 +16,7 @@ export async function getPrice(config, jwt, provider) {
             },
             body: JSON.stringify(config)
         });
+
         const data = await response.json();
         return Number(data.price);
     } catch (error) {
