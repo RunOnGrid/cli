@@ -1,11 +1,11 @@
 
-import { getDeployments, getDeploymentById, refundAkash } from "../../service/deployments/deploymentAdmin.js";
+import { getDeployments, getDeploymentById, deleteDeployment, updateDeployment, refundAkash } from "../../service/deployments/deploymentAdmin.js";
 import { Command } from "commander";
 
 export const deploymentsCommand = new Command("deployment")
-  .description("Deployment commands"); 
+    .description("Deployment commands")
 
-const deploymentsLsCommand = new Command("ls")
+const deploymentsLsCommand = new Command("list")
     .description("Get deployments")
     .action(async () => {
         const deployments = await getDeployments();
@@ -15,21 +15,44 @@ const deploymentsLsCommand = new Command("ls")
 
 const deploymentsByIdCommand = new Command("id")
     .description("Get deployments by id")
-    .option("--id <id>", "List deployment by id")
-    .action(async (options) =>{
-        const deployments = await getDeploymentById(options.id);
+    .argument("<id>", "List deployment by id")
+    .action(async (id) => {
+        const deployments = await getDeploymentById(id);
         console.log(deployments)
     })
 
 const deploymentRefund = new Command("refund")
-.description("Akash deployment refund")
-.option("--id <id>", "id of akash deployment")
-.action(async (options) =>{
-    const response = await refundAkash(options.id)
-    console.log(response);
-    
-})
+    .description("Akash deployment refund")
+    .argument("<id>", "ID of Akash deployment")  
+    .action(async (id) => {
+        await refundAkash(id)
+    })
+
+const deploymentDelete = new Command("delete")
+    .description("Delete deployment by id")
+    .argument("<id>", "ID of deployment") 
+    .action(async (id) => {
+        if (!id) {
+            console.log("Missing ID");
+            return;
+        }
+        await deleteDeployment(id);
+    });
+
+
+const deploymentUpdate = new Command("update")
+    .description("Update deployment")
+    .argument("<id>", "ID of deployment")  
+    .argument("<path>", "Path of deployment") 
+    .action(async () => {
+        console.log("ID:", id);
+        console.log("Path:", path);
+
+        await updateDeployment(id, path);
+    });
 
 deploymentsCommand.addCommand(deploymentsLsCommand);
 deploymentsCommand.addCommand(deploymentsByIdCommand);
 deploymentsCommand.addCommand(deploymentRefund);
+deploymentsCommand.addCommand(deploymentDelete);
+deploymentsCommand.addCommand(deploymentUpdate);

@@ -61,7 +61,7 @@ export const deployAkash = async (filePath) => {
         
         const spinner = createSpinner('Deploying your service...').start();
 
-        const fetchWithTimeout = (url, options = {}, timeout = 100000) => {
+        const fetchWithTimeout = (url, options = {}, timeout = 400000) => {
             return Promise.race([
               fetch(url, options),
               new Promise((_, reject) =>
@@ -79,22 +79,22 @@ export const deployAkash = async (filePath) => {
                 Authorization: `Bearer ${jwt}`,
               },
               body: akashYaml,
-            }, 30000); // Timeout de 15 segundos
-          
-            if (!response.ok) {
-              const errorText = await response.text();
-              console.error('Error en el deploy:', response.status);
-              spinner.error({text: "Error deploying, please contact team: Support@ongrid.run"})
-              return;
+            }, 40000); // Timeout de 15 segundos
+            const result = await response.json();
+            
+            if (result.status === 'error') {
+              const errorText = await response.json();
+              console.error('Error en el deploy:', errorText);
+              spinner.error({text: "Error deploying, if problem persist: Support@ongrid.run"})
+              process.exit(1);
             }
           
-            const result = await response.text();
-            spinner.success({text: "Deployment succesfull:", result});
-            return;
-
-          
+        
+            spinner.success({text: `Deployment succesfull: ${result}`});
+            process.exit(0);
           } catch (error) {
-            console.error('Error general al hacer fetch:', error.message);
+            spinner.error({text: "Error general al hacer fetch"})
+            process.exit(1)
           }
           
 

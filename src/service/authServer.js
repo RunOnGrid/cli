@@ -53,7 +53,7 @@ export const logInOAuth = async (provider) => {
         await saveToken(token);
         await savePassword("userId", userId);
         res.end("Authentication successful! You can close this window.");
-        spinner.success({ text: "Authentication succesful" })
+        spinner.success({ text: "Authentication succesful" });
         resolve({ token, userId });
       } else {
         res.writeHead(400);

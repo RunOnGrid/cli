@@ -4,7 +4,6 @@ import chalk from 'chalk';
 import { createSpinner } from "nanospinner";
 import { getToken } from "../../../utils/keyChain.js";
 import { getPassword } from "../../../utils/keyChain.js";
-import { getSuitableNodeIps } from "../flux/fluxNodeService.js";
 import path from 'path';
 import dotenv from "dotenv"
 import inquirer from "inquirer";
@@ -27,13 +26,14 @@ export const deployFlux = async (filePath) => {
         const config = await readConfigFile(filePath, "FLUX");
 
         const dataPrice = await getPrice(config, jwt, "FLUX");
-
-        if(isNaN(dataPrice)){
+        console.log(dataPrice);
+        
+        if (isNaN(dataPrice)) {
             console.error(chalk.red("Authorization Token expired, Please Log-in using(grid login --google/--github)"));
             return;
-         }
+        }
         console.log(chalk.green("Price: $", dataPrice.toFixed(2)));
-        
+
 
         const payments = await inquirer.prompt([
             {
@@ -64,7 +64,7 @@ export const deployFlux = async (filePath) => {
             return;
         }
         const spinner = createSpinner('Deploying your service...').start();
-        const response = await fetch("https://backend-dev.ongrid.run/flux", {
+        const response = await fetch(`${BACKEND_URL}/flux`, {
             method: "POST",
             headers: {
                 "Accept": "application/json",
@@ -74,37 +74,15 @@ export const deployFlux = async (filePath) => {
             body: JSON.stringify(config)
         });
         const data = await response.json();
-        if (data.informationDeploy.message == 'Insufficient balance') {
-            spinner.error({ text: "Insufficient balance, charge credits at: https://dev.ongrid.run/profile/billing" });
-            return;
-        } else if (data.status === "success") {
+        if (data.status === "success") {
             spinner.success({ text: "Deploy successful, check your deployments for more information", data });
-            return;
+            process.exit(0);
         } else {
-            spinner.error({ text: "status Failed" });
-            return;
+            spinner.error({ text: "Error deploying, if problem persist: Support@ongrid.run" });
+            process.exit(1);
         }
     } catch (error) {
         console.error("Error details:", error.message);
         throw error;
     }
 }
-
-// async function getPrice(config, jwt) {
-//     try {
-//         const response = await fetch(`${process.env.BACKEND_URL_DEV}/deployments/price?cloudProvider=FLUX`, {
-//             method: "POST",
-//             headers: {
-//                 "Content-Type": "application/json",
-//                 "Authorization": `Bearer ${jwt}`
-//             },
-//             body: JSON.stringify(config)
-//         });
-//         const data = await response.json();
-//         return Number(data.price);
-//     } catch (error) {
-//         console.error("Error fetching price", error);
-//         throw new Error("Failed to get price");
-//     }
-// }
-
