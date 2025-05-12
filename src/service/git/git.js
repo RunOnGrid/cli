@@ -12,7 +12,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
-const git_url = process.env.GIT_URL;
+const git_url = process.env.GIT_URL || "https://git-app-dev.ongrid.run/";
 
 export const redirectGit = async() =>{
     try {
@@ -152,7 +152,7 @@ export const gridWorkflow = async() => {
         const { repo, branch, owner, installationId } = await selectRepo(repositoriesData);
     
         
-        const response = await fetch(`${git_url}/workflows/run`, {
+        const response = await fetch(`${git_url}workflows/run`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -185,7 +185,7 @@ export const checkWorkFlow = async(installationId, owner, repo, runId) => {
             try {
                 
                 const response = await fetch(
-                    `${git_url}/workflows/status?installationId=${installationId}&owner=${owner}&repo=${repo}&runId=${runId}`,
+                    `${git_url}workflows/status?installationId=${installationId}&owner=${owner}&repo=${repo}&runId=${runId}`,
                     {
                         method: "GET",
                         headers: {

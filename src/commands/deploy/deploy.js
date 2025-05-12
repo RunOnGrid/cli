@@ -8,22 +8,22 @@ export const deployCommand = new Command("deploy")
 
 const fluxSubcommand = new Command("flux")
   .description("Deploy on Flux")
-  .option("--config <path>", "Path to configuration JSON file (absolute path)")
-  .action(async (options) => {
+  .argument("<config>", "Path to configuration JSON file (absolute path)")
+  .action(async (config) => {
     try {
-      await deployFlux(options.config);
+      await deployFlux(config);
     } catch (error) {
       console.error(error);
-      process.exit(1); // Salir con un código de error si falla el despliegue
+      process.exit(1); 
     }
   });
 
 const akashSubcommand = new Command("akash")
   .description("Deploy on Akash")
-  .option("--config <path>", "Path to configuration Yaml file (absolute path)")
-  .action(async (options) => {
+  .argument("<config>", "Path to configuration Yaml file (absolute path)")
+  .action(async (config) => {
       try {
-        await deployAkash(options.config)
+        await deployAkash(config)
       } catch (error) {
         console.error(error);
         process.exit(1)
