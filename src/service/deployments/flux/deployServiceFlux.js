@@ -16,7 +16,7 @@ import { readConfigFile } from "../../../utils/authPath.js"
 // Load .env from the project root
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
-const BACKEND_URL = process.env.BACKEND_DEV_FLUX
+const BACKEND_URL = process.env.BACKEND_DEV_FLUX || "https://backend-dev.ongrid.run"
 
 
 

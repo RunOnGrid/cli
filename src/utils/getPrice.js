@@ -4,11 +4,12 @@ import path from "path";
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
+const BACKEND_URL = process.env.BACKEND_URL_DEV || "http://backend-dev.ongrid.run/"
 
 export async function getPrice(config, jwt, provider) {
     try {
         
-        const response = await fetch(`${process.env.BACKEND_URL_DEV}deployments/price?cloudProvider=${provider}`, {
+        const response = await fetch(`${BACKEND_URL}deployments/price?cloudProvider=${provider}`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

@@ -7,11 +7,11 @@ import { getBalance } from "../../utils/getBalance.js";
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
-
+const BACKEND_URL = process.env.BACKEND_URL_DEV || "http://backend-dev.ongrid.run/"
 export const getDeployments = async () => {
     try {
         const jwt = await getToken()
-        const response = await fetch(`${process.env.BACKEND_URL_DEV}deployments`, {
+        const response = await fetch(`${BACKEND_URL}deployments`, {
             method: "GET",
             headers: {
                 "Accept": "*/*",
@@ -36,7 +36,7 @@ export const getDeployments = async () => {
 export const getDeploymentById = async (id) => {
     try {
         const jwt = await getToken()
-        const response = await fetch(`${process.env.BACKEND_URL_DEV}deployments/${id}`, {
+        const response = await fetch(`${BACKEND_URL}deployments/${id}`, {
             method: "GET",
             headers: {
                 "Accept": "*/*",
@@ -58,7 +58,7 @@ export const getDeploymentById = async (id) => {
 export const deleteDeployment = async (id) => {
     try {
         const jwt = await getToken();
-        const response = await fetch(`${process.env.BACKEND_URL_DEV}deployments/${id}`, {
+        const response = await fetch(`${BACKEND_URL}deployments/${id}`, {
             method: "DELETE",
             headers: {
                 "Accept": "*/*",
@@ -84,7 +84,7 @@ export const updateDeployment = async (id, filepath, provider) => {
     try {
         const jwt = await getToken();
 
-        const response = await fetch(`${process.env.BACKEND_URL_DEV}deployments/${id}?cloudProvider=${provider}`, {
+        const response = await fetch(`${BACKEND_URL}deployments/${id}?cloudProvider=${provider}`, {
             method: "PUT",
             headers: {
                 "Accept": "application/json",
@@ -103,7 +103,7 @@ export const refundAkash = async (id) => {
     try {
     
         const jwt = await getToken();
-        const response = await fetch(`${process.env.BACKEND_URL_DEV}akash/refund/${id}`, {
+        const response = await fetch(`${BACKEND_URL}akash/refund/${id}`, {
             method: "POST",
             headers: {
                 "Accept": "*/*",

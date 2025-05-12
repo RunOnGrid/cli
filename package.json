@@ -1,10 +1,17 @@
 {
   "name": "cligrid",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "bin": {
     "grid": "./src/bin/index.js"
   },
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/runongrid"
+  },
+  "homepage": "https://ongrid.run",
+  "license":"Apache-2.0",
+  "description": "CLI tool for managing Grid",
   "dependencies": {
     "axios": "^1.9.0",
     "chalk": "^5.4.1",
