@@ -11,7 +11,7 @@ const repos = new Command("repos")
         await getRepositories()
     })
 const build = new Command("build")
-    .description("Build github repositorie").action(async () => {
+    .description("Build a runnable container image from github repository").action(async () => {
         await gridWorkflow()
     })
 const connectGit = new Command("connect")
