@@ -103,7 +103,7 @@ akash                                   Deploy your container image to Akash.
 
 ## Documentation
 
-For details on how to use Vercel, check out our [documentation](https://documentation.ongrid.run).
+For details on how to use Grid, check out our [documentation](https://documentation.ongrid.run).
 
 
 
