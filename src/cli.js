@@ -7,7 +7,7 @@ import {gitCommands} from "./commands/git/git.js"
 
 
 const program = new Command();
-program.name("gridcli").description("CLI GRID").version("1.0.0");
+program.name("gridcli").description("CLI GRID").version("1.1.1");
 program
   .command('help')
   .description('List all available commands')

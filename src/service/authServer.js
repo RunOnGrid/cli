@@ -14,7 +14,7 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 // URL de autenticación con Google
-const BASE_URL = process.env.DEV_URL || "http://backend-dev.ongrid.run/oauth/cli"
+const BASE_URL = process.env.DEV_URL || "http://backend.ongrid.run/oauth/cli"
 
 
 export const logInOAuth = async (provider) => {

@@ -13,15 +13,16 @@ import chalk from "chalk";
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
+const BACKEND_URL = process.env.BACKEND_URL_DEV || "http://backend.ongrid.run/"
+
 export const deployAkash = async (filePath) => {
     try {
         const jwt = await getToken();
-        const config = await readConfigFile(filePath, "AKASH");
-        const dataPrice = await getPrice(config, jwt, "AKASH")
 
-        // Assuming you want 2 decimal places for currency
+        const config = await readConfigFile(filePath, "AKASH");
+        const dataPrice = await getPrice(config, jwt, "AKASH");
         if (isNaN(dataPrice)) {
-            console.error(chalk.red("Authorization Token expired, Please Log-in using(grid login --google/--github)"));
+            console.error(chalk.red("Authorization Token expired, Please Log-in using(grid login google/github)"));
             return;
         }
 
@@ -50,7 +51,8 @@ export const deployAkash = async (filePath) => {
             return;
         }
         const userBalance = await getBalance();
-
+        
+        
         if (userBalance < dataPrice) {
             console.log(chalk.red(`Account Balance: $${userBalance}`));
             console.log(chalk.red("Please deposit credits by visiting https://ongrid.run/profile/billing or by using the CLI command grid stripe."));
@@ -61,7 +63,7 @@ export const deployAkash = async (filePath) => {
         
         const spinner = createSpinner('Deploying your service...').start();
 
-        const fetchWithTimeout = (url, options = {}, timeout = 400000) => {
+        const fetchWithTimeout = (url, options = {}, timeout = 7000000) => {
             return Promise.race([
               fetch(url, options),
               new Promise((_, reject) =>
@@ -71,7 +73,7 @@ export const deployAkash = async (filePath) => {
           };
           
           try {
-            const response = await fetchWithTimeout(`${process.env.BACKEND_URL_DEV}akash`, {
+            const response = await fetchWithTimeout(`${BACKEND_URL}akash`, {
               method: "POST",
               headers: {
                 "Accept": "text/plain",
@@ -79,7 +81,7 @@ export const deployAkash = async (filePath) => {
                 Authorization: `Bearer ${jwt}`,
               },
               body: akashYaml,
-            }, 40000); // Timeout de 15 segundos
+            }, 7000000);
             const result = await response.json();
             
             if (result.status === 'error') {
@@ -88,12 +90,11 @@ export const deployAkash = async (filePath) => {
               spinner.error({text: "Error deploying, if problem persist: Support@ongrid.run"})
               process.exit(1);
             }
-          
-        
-            spinner.success({text: `Deployment succesfull: ${result}`});
+            console.log(result);
+            spinner.success({text: "Sucess"});
             process.exit(0);
           } catch (error) {
-            spinner.error({text: "Error general al hacer fetch"})
+            spinner.error({text: "Error fetching,check if deployment succesfull by using grid deployment list. if problem persist: Support@ongrid.run"})
             process.exit(1)
           }
           

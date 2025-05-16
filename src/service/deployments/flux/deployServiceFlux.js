@@ -1,4 +1,3 @@
-
 import chalk from 'chalk';
 // import inquirer from "inquirer";
 import { createSpinner } from "nanospinner";
@@ -16,24 +15,24 @@ import { readConfigFile } from "../../../utils/authPath.js"
 // Load .env from the project root
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
-const BACKEND_URL = process.env.BACKEND_DEV_FLUX || "https://backend-dev.ongrid.run"
+const BACKEND_URL = process.env.BACKEND_URL_DEV || "https://backend.ongrid.run/"
 
 
 
 export const deployFlux = async (filePath) => {
     try {
         const jwt = await getToken();
+        
         const config = await readConfigFile(filePath, "FLUX");
+        console.log(config);
 
         const dataPrice = await getPrice(config, jwt, "FLUX");
-        console.log(dataPrice);
         
         if (isNaN(dataPrice)) {
-            console.error(chalk.red("Authorization Token expired, Please Log-in using(grid login --google/--github)"));
+            console.error(chalk.red("Authorization Token expired, Please Log-in using(grid login google/github)"));
             return;
         }
         console.log(chalk.green("Price: $", dataPrice.toFixed(2)));
-
 
         const payments = await inquirer.prompt([
             {
@@ -64,7 +63,7 @@ export const deployFlux = async (filePath) => {
             return;
         }
         const spinner = createSpinner('Deploying your service...').start();
-        const response = await fetch(`${BACKEND_URL}/flux`, {
+        const response = await fetch(`${BACKEND_URL}flux`, {
             method: "POST",
             headers: {
                 "Accept": "application/json",
@@ -72,17 +71,18 @@ export const deployFlux = async (filePath) => {
                 "Authorization": `Bearer ${jwt}`,
             },
             body: JSON.stringify(config)
-        });
+        });        
         const data = await response.json();
         if (data.status === "success") {
-            spinner.success({ text: "Deploy successful, check your deployments for more information", data });
+            console.log(data);
+            spinner.success({ text: "Deploy successful, check your deployments for more information"});
             process.exit(0);
         } else {
             spinner.error({ text: "Error deploying, if problem persist: Support@ongrid.run" });
             process.exit(1);
         }
     } catch (error) {
-        console.error("Error details:", error.message);
+        console.error("Error fetching, check if deployment was succesfull by using grid deployment list. if problem persist: Support@ongrid.run");
         throw error;
     }
 }

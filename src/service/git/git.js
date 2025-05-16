@@ -12,8 +12,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
-const git_url = process.env.GIT_URL || "https://git-app-dev.ongrid.run/";
-
+const git_url = process.env.GIT_URL || "https://git-app.ongrid.run/";
+const git_connector = process.env.GIT_CONNECTOR || "https://github.com/apps/grid-connector-for-github/installations/select_target"
 export const redirectGit = async() =>{
     try {
         const server = http.createServer();
@@ -22,7 +22,7 @@ export const redirectGit = async() =>{
         
         server.listen(port, "127.0.0.1", () => {
             console.log(chalk.blue('\nOpening GitHub installation page...'));
-            open("https://github.com/apps/grid-connector-for-github-dev/installations/select_target");
+            open(git_connector);
         });
 
         const spinner = createSpinner('Waiting for GitHub installation to be completed').start();

@@ -24,13 +24,13 @@ Grid Platform provides the developer access to decentralized infrastructure to b
 Otherwise
 
 ```bash
-npm i -g grid
+npm i -g cli-grid
 ```
 ```bash
-pnpm i -g grid
+pnpm i -g cli-grid
 ```
 ```bash
-yarn global add grid
+yarn global add cli-grid
 ```
 ## Supported commands and options
 

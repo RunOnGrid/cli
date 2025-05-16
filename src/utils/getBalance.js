@@ -7,7 +7,7 @@ import dotenv from "dotenv"
 // Load .env from the project root
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
-const BACKEND_URL = process.env.BACKEND_URL_DEV;
+const BACKEND_URL = process.env.BACKEND_URL_DEV || "http://backend.ongrid.run/";
 
 export const getBalance =async()=>{
     try {

@@ -13,54 +13,28 @@ export async function readConfigFile(filePath, provider) {
         }
 
         await fs.access(normalizedPath);
-
-
         const fileContent = await fs.readFile(normalizedPath, 'utf8');
-        let config;
 
+        if (provider === "FLUX") {
+            const parsed = JSON.parse(fileContent);
+            // Si repoAuth tiene información no vacía, usamos enhancedComposeFlux
+            if (parsed.repoAuth && parsed.repoAuth.trim() !== "" && parsed.tierd === true) {
+                return await enhancedComposeFlux(fileContent);
+            }
+            
+            // Si no hay info en repoAuth, devolvemos el JSON parseado
+            return parsed;
+        } else if (provider === "AKASH") {
+            return yaml.load(fileContent);
+        }
 
-        return enhancedComposeFlux(config);
-
-
-        return enhancedComposeAkash(config);
-
-
+        return;
     } catch (error) {
-        console.error('Error details:', error);
+        console.error('Error in readConfigFile:', error);
         return;
     }
 }
 
-async function enhancedComposeFlux(config) {
-    try {
-        const accessToken = await getPassword("Access token");
-        const selectedNodes = await getSuitableNodeIps();
-
-        const enhancedCompose = config.compose.map(service => ({
-            ...service,
-            repoauth: `BenjaminAguirre:${accessToken}`,
-        }));
-        return {
-            ...config,
-            compose: enhancedCompose,
-            nodes: selectedNodes
-        }
-
-    } catch (error) {
-        console.error(`Error reading config file: ${error.message}`)
-    }
-}
-async function enhancedComposeAkash(config) {
-    try {
-        const accessToken = await getPassword("Access token");
-        config.services["service-1"].credentials.password = accessToken
-
-        return config;
-
-    } catch (error) {
-        throw new Error(`Error reading config file: ${error.message}`)
-    }
-}
 
 export async function enhancedCompose(provider, fileContent) {
     try {
@@ -75,7 +49,8 @@ export async function enhancedCompose(provider, fileContent) {
             }
         } else if (provider === "AKASH") {
             try {
-                config = yaml.load(fileContent);
+                config = yaml.dump(fileContent);
+                console.log(config);
                 return config;
             } catch (parseError) {
                 console.error(`Error parsing AKASH config file as YAML: ${parseError.message}`);
@@ -86,6 +61,31 @@ export async function enhancedCompose(provider, fileContent) {
             return;
         }
     } catch (error) {
-
+        console.error("Error in enhancedCompose:", error.message);
     }
 }
+async function enhancedComposeFlux(fileContent) {
+    try {
+        const selectedNodes = await getSuitableNodeIps();
+        const config = await enhancedCompose("FLUX", fileContent);
+
+        if (!config) throw new Error("Invalid config");
+
+        config.nodes = selectedNodes;
+
+        return config;
+    } catch (error) {
+        console.error(`Error reading config file: ${error.message}`);
+    }
+}
+// async function enhancedComposeAkash(config) {
+//     try {
+//         const accessToken = await getPassword("Access token");
+//         config.services["service-1"].credentials.password = accessToken
+
+//         return config;
+
+//     } catch (error) {
+//         throw new Error(`Error reading config file: ${error.message}`)
+//     }
+// }

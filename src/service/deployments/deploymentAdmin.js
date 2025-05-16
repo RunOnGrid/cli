@@ -7,7 +7,7 @@ import { getBalance } from "../../utils/getBalance.js";
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
-const BACKEND_URL = process.env.BACKEND_URL_DEV || "http://backend-dev.ongrid.run/"
+const BACKEND_URL = process.env.BACKEND_URL_DEV || "http://backend.ongrid.run/"
 export const getDeployments = async () => {
     try {
         const jwt = await getToken()
