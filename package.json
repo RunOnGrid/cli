@@ -1,6 +1,6 @@
 {
   "name": "cli-grid",
-  "version": "1.1.1",
+  "version": "1.1.5",
   "bin": {
     "grid": "./src/bin/index.js"
   },

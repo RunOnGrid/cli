@@ -23,16 +23,15 @@ export async function getSuitableNodeIps(count = 10) { // Puedes hacer el conteo
 
         if (nodeIps.length === 0) {
              console.warn(chalk.yellow("Enterprise nodes not found"));
+             process.exit(1)
         }
-
 
         return nodeIps;
 
     } catch (error) {
         // Capturar errores de cualquier paso interno y propagar un error más descriptivo
-        console.error(chalk.red('Error al obtener los IPs de nodos adecuados:'), error.message);
-        // Puedes loguear el error completo si es necesario para depuración: console.error(error);
-        throw new Error('No se pudieron obtener los IPs de nodos necesarios para el despliegue.');
+        console.error(chalk.red('Could not obtain the necessary node IPs for deployment'));
+        process.exit(1)
     }
 }
 
@@ -45,14 +44,13 @@ async function getEnterpriseNodes() {
         
         const response = await axios.get(enterpriseUrlNodes);
         if (response.data.status !== 'success') {
-            throw new Error('Failed to get enterprise nodes: ' + response.data.message);
+            console.error('Failed to get enterprise nodes');
+            process.exit(1)
         }
-        // set to redis
-
         return response.data.data;
     } catch (error) {
-        console.error('Error fetching enterprise nodes:', error);
-        throw new Error('Could not retrieve enterprise nodes');
+        console.error('Could not retrieve enterprise nodes');
+        process.exit(1);
     }
 }
 

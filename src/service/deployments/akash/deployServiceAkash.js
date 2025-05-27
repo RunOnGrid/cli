@@ -30,7 +30,7 @@ export const deployAkash = async (filePath) => {
 
         const payments = await inquirer.prompt([
             {
-                type: "choices",
+                type: "list",
                 name: "paymentAuthorized",
                 message: "Authorize payment(y/n)",
                 choices: [
@@ -46,9 +46,9 @@ export const deployAkash = async (filePath) => {
             }
         ]);
 
-        if (payments.paymentAuthorized === 'n') {
+        if (payments.paymentAuthorized === false) {
             console.log(chalk.red("Payment cancelled"))
-            return;
+            process.exit(1);
         }
         const userBalance = await getBalance();
         
@@ -56,7 +56,7 @@ export const deployAkash = async (filePath) => {
         if (userBalance < dataPrice) {
             console.log(chalk.red(`Account Balance: $${userBalance}`));
             console.log(chalk.red("Please deposit credits by visiting https://ongrid.run/profile/billing or by using the CLI command grid stripe."));
-            return;
+            process.exit(1);
         }
         const akashYaml = yaml.dump(config, { indent: 2 });
         console.log(akashYaml);
@@ -86,7 +86,7 @@ export const deployAkash = async (filePath) => {
             
             if (result.status === 'error') {
               const errorText = await response.json();
-              console.error('Error en el deploy:', errorText);
+              console.error(errorText);
               spinner.error({text: "Error deploying, if problem persist: Support@ongrid.run"})
               process.exit(1);
             }

@@ -1,6 +1,5 @@
 import path from "path";
 import fs from "fs/promises";
-import { getPassword } from "./keyChain.js";
 import { getSuitableNodeIps } from "../service/deployments/flux/fluxNodeService.js";
 import yaml from "js-yaml"
 
@@ -9,31 +8,47 @@ export async function readConfigFile(filePath, provider) {
         const normalizedPath = filePath.replace(/\\/g, '/');
 
         if (!path.isAbsolute(normalizedPath)) {
-            throw new Error('Only absolute paths are allowed. Please provide the full path to your config file.');
+            console.error('Only absolute paths are allowed. Please provide the full path to your config file.');
+            process.exit(1);
         }
 
         await fs.access(normalizedPath);
         const fileContent = await fs.readFile(normalizedPath, 'utf8');
 
         if (provider === "FLUX") {
-            const parsed = JSON.parse(fileContent);
-            // Si repoAuth tiene información no vacía, usamos enhancedComposeFlux
+            let parsed;
+            try {
+                parsed = JSON.parse(fileContent);
+            } catch (jsonErr) {
+                console.error("❌ Invalid config format: Expected JSON for FLUX but received invalid format or YAML.");
+                process.exit(1);
+            }
+
             if (parsed.repoAuth && parsed.repoAuth.trim() !== "" && parsed.tierd === true) {
                 return await enhancedComposeFlux(fileContent);
             }
-            
-            // Si no hay info en repoAuth, devolvemos el JSON parseado
+
             return parsed;
-        } else if (provider === "AKASH") {
-            return yaml.load(fileContent);
         }
 
-        return;
+        if (provider === "AKASH") {
+            try {
+                return yaml.load(fileContent);
+            } catch (yamlErr) {
+                console.error("❌ Invalid config format: Expected YAML for AKASH but received invalid or malformed content.");
+                process.exit(1);
+            }
+        }
+
+        console.error(`❌ Unsupported provider: ${provider}. Supported providers are "FLUX" and "AKASH".`);
+        process.exit(1);
+
     } catch (error) {
-        console.error('Error in readConfigFile:', error);
-        return;
+        console.error('❌ Error accessing config file');
+        process.exit(1);
     }
 }
+
 
 
 export async function enhancedCompose(provider, fileContent) {

@@ -23,7 +23,7 @@ export async function getPrice(config, jwt, provider) {
         const data = await response.json();
         return Number(data.price);
     } catch (error) {
-        console.error("Error fetching price", error);
-        throw new Error("Failed to get price");
+        console.error("Error fetching price");
+        process.exit(1)
     }
 }

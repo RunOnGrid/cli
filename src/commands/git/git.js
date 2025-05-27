@@ -4,8 +4,6 @@ import { redirectGit, getRepositories, gridWorkflow } from "../../service/git/gi
 
 export const gitCommands = new Command("git");
 
-
-
 const repos = new Command("repos")
     .description("Fetch repositories").action(async () => {
         await getRepositories()

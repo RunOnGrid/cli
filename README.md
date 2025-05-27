@@ -74,7 +74,7 @@ build                                   Select a repository and build it into a 
 ```
 
 ### deployment
-The `deployment` command is used to manage GitHub repositories for Grid deployments. It enables connecting your account to the Grid GitHub App and supports building container images via GitHub Actions.
+The `deployment` command is used to manage Grid deployments.
 ```bash                                 
 grid deployment [options]
 ```
@@ -83,10 +83,18 @@ grid deployment [options]
 list                                    List available deployments in your account.
 id [deployment-id]                      List deployment by id.
 delete [deployment-id]                  Delete deploymeny by id.
-update [deployment-id] [config]         Update your deployment configuration
 refund [deployment-id]                  Refund an akash deployment. For more information [documentation](https://documentation.ongrid.run/build-deploy/payments/akash)  
 ```
+### update
+The `update` command allows you to update app specifications
+```bash
+grid update [provider] [id] [config-path]
+```
 
+```bash
+flux                                    update a flux deployment.             
+akash                                   update a akash deployment.  
+```
 ### deploy
 The `deploy` command is used to launch a new application deployment to the cloud provider of your choice using either public or private container images.
 ```bash                            
