@@ -1,11 +1,10 @@
-import { Command } from "commander";
+import { Command } from 'commander';
 import { deploymentsCommand, deploymentUpdate } from "./commands/deployments/deployments.js";
-import {login} from "./commands/login/login.js";
+import { login } from "./commands/login/login.js";
 import { deployCommand } from "./commands/deploy/deploy.js";
 import { logout } from "./commands/logout/logout.js";
-import {gitCommands} from "./commands/git/git.js"
-import { updateDeployment } from "./service/deployments/deploymentAdmin.js";
-
+import { gitCommands } from "./commands/git/git.js";
+import { stripeCommand } from "./commands/payment/stripe.js";
 
 const program = new Command();
 program.name("gridcli").description("CLI GRID").version("1.1.5");
@@ -62,4 +61,5 @@ program.addCommand(login);
 program.addCommand(logout);
 program.addCommand(deployCommand);
 program.addCommand(gitCommands);
+program.addCommand(stripeCommand);
 program.parse(process.argv);

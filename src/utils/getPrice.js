@@ -1,4 +1,4 @@
-import { log } from "console";
+
 import dotenv from "dotenv";
 import path from "path";
 

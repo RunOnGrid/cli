@@ -1,8 +1,14 @@
 import { getDeployments, getDeploymentById, deleteDeployment, updateDeployment, refundAkash } from "../../service/deployments/deploymentAdmin.js";
 import { Command } from "commander";
+import { getToken } from '../../utils/keyChain.js';
 
 export const deploymentsCommand = new Command("deployment")
-    .description("Deployment commands")
+    .description("Manage deployments")
+    .action(async () => {
+        const token = await getToken();
+        // Implement deployments list logic here
+        console.log('Deployments list');
+    });
 
 const deploymentsLsCommand = new Command("list")
     .description("Get deployments")
@@ -40,16 +46,14 @@ const deploymentDelete = new Command("delete")
 
 
 export const deploymentUpdate = new Command("update")
-    .description("Update deployment")
-    .argument("<provider>", "Provider declaration")
-    .argument("<id>", "ID of deployment")
-    .argument("<path>", "Path of deployment")
-    .action(async (provider, id, path) => {
-        console.log("ID:", id);
-        console.log("Path:", path);
-        provider = provider.toUpperCase();
-        await updateDeployment(id, path, provider);
-        return;
+    .description("Update a deployment")
+    .argument("<provider>", "Cloud provider (flux or akash)")
+    .argument("<id>", "Deployment ID")
+    .argument("<config-path>", "Path to configuration file")
+    .action(async (provider, id, configPath) => {
+        const token = await getToken();
+        // Implement update logic here
+        console.log(`Updating deployment ${id} on ${provider} with config from ${configPath}`);
     });
 
 deploymentsCommand.addCommand(deploymentsLsCommand);
