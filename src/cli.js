@@ -52,6 +52,9 @@ Available Commands
 --update
   Update a deployment 
   grid update [provider] [id] [config-path]
+--stripe
+  Charge credits via stripe
+  grid stripe [amount]
 `);
   });
 // Agregar comandos
