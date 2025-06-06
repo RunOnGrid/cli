@@ -2,7 +2,7 @@ import { getToken } from "../../utils/keyChain.js";
 import path from "path";
 import dotenv from "dotenv";
 import chalk from "chalk";
-import { getBalance } from "../../utils/getBalance.js";
+import { readConfigFile } from "../../utils/authPath.js"
 
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
@@ -30,6 +30,7 @@ export const getDeployments = async () => {
 
     } catch (error) {
         console.error("Error fetching deployments, if the error persist please contact support@ongrid.run");
+        process.exit(1)
     }
 }
 
@@ -53,6 +54,7 @@ export const getDeploymentById = async (id) => {
         return data;
     } catch (error) {
         console.error("Error fetching deployment, if the error persist please contact support@ongrid.run");
+        process.exit(1)
     }
 }
 export const deleteDeployment = async (id) => {
@@ -77,13 +79,18 @@ export const deleteDeployment = async (id) => {
         }
     } catch (error) {
         console.error("Error deleting deployment, if the error persist please contact support@ongrid.run")
+        process.exit(1)
     }
 }
 
 export const updateDeployment = async (id, filepath, provider) => {
     try {
         const jwt = await getToken();
-
+        const config = await readConfigFile(filepath, provider);
+        const file = JSON.stringify(config);
+        
+        console.log(file);
+        
         const response = await fetch(`${BACKEND_URL}deployments/${id}?cloudProvider=${provider}`, {
             method: "PUT",
             headers: {
@@ -91,11 +98,14 @@ export const updateDeployment = async (id, filepath, provider) => {
                 "Content-Type": "application/json",
                 "Authorization": `Bearer ${jwt}`,
             },
-            body: JSON.stringify(filepath)
+            body: file
         })
-
+        
+        const data = await response.json();
+        console.log(data);
+        return;
     } catch (error) {
-        console.error("Error updating deployment, if the error persist please contact support@ongrid.run")
+        console.error("Error updating deployment, if the error persist please contact support@ongrid.run", error)
     }
 }
 

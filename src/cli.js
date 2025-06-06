@@ -1,13 +1,13 @@
-import { Command } from "commander";
-import { deploymentsCommand } from "./commands/deployments/deployments.js";
-import {login} from "./commands/login/login.js";
+import { Command } from 'commander';
+import { deploymentsCommand, deploymentUpdate } from "./commands/deployments/deployments.js";
+import { login } from "./commands/login/login.js";
 import { deployCommand } from "./commands/deploy/deploy.js";
 import { logout } from "./commands/logout/logout.js";
-import {gitCommands} from "./commands/git/git.js"
-
+import { gitCommands } from "./commands/git/git.js";
+import { stripeCommand } from "./commands/payment/stripe.js";
 
 const program = new Command();
-program.name("gridcli").description("CLI GRID").version("1.1.1");
+program.name("gridcli").description("CLI GRID").version("1.1.5");
 program
   .command('help')
   .description('List all available commands')
@@ -41,7 +41,6 @@ Available Commands
       list                          List available deployments in your account.
       id [deployment-id]           List deployment by id.
       delete [deployment-id]       Delete deployment by id.
-      update [deployment-id] [...] Update your deployment configuration
       refund [deployment-id]       Refund an akash deployment.
 
 --deploy
@@ -50,12 +49,17 @@ Available Commands
     Providers:
       flux
       akash
+--update
+  Update a deployment 
+  grid update [provider] [id] [config-path]
 `);
   });
 // Agregar comandos
 program.addCommand(deploymentsCommand);
+program.addCommand(deploymentUpdate);
 program.addCommand(login);
 program.addCommand(logout);
 program.addCommand(deployCommand);
 program.addCommand(gitCommands);
+program.addCommand(stripeCommand);
 program.parse(process.argv);

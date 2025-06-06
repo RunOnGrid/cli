@@ -1,10 +1,14 @@
 import { Command } from "commander";
 import { redirectGit, getRepositories, gridWorkflow } from "../../service/git/git.js"
+import { getToken } from '../../utils/keyChain.js';
 
-
-export const gitCommands = new Command("git");
-
-
+export const gitCommands = new Command("git")
+    .description("GitHub repository management")
+    .action(async () => {
+        const token = await getToken();
+        // Implement git commands logic here
+        console.log('Git commands');
+    });
 
 const repos = new Command("repos")
     .description("Fetch repositories").action(async () => {

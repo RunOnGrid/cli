@@ -36,7 +36,7 @@ export const deployFlux = async (filePath) => {
 
         const payments = await inquirer.prompt([
             {
-                type: "choices",
+                type: "list",
                 name: "paymentAuthorized",
                 message: "Authorize payment(y/n)",
                 choices: [
@@ -52,15 +52,15 @@ export const deployFlux = async (filePath) => {
             }
         ]);
 
-        if (payments.paymentAuthorized === 'n') {
+        if (payments.paymentAuthorized === false) {
             console.log(chalk.red("Payment cancelled"))
-            return;
+            process.exit(1)
         }
         const userBalance = await getBalance();
 
         if (userBalance < dataPrice) {
             console.log(chalk.red("Please deposit credits by visiting https://ongrid.run/profile/billing or by using the CLI command grid stripe."));
-            return;
+            process.exit(1)
         }
         const spinner = createSpinner('Deploying your service...').start();
         const response = await fetch(`${BACKEND_URL}flux`, {

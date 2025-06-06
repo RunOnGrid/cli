@@ -1,4 +1,3 @@
-
 import { getToken } from "./keyChain.js";
 import path from 'path';
 import dotenv from "dotenv"
@@ -22,6 +21,8 @@ export const getBalance =async()=>{
     const data = response.json();
     return data;
     } catch (error) {
-        throw new Error("Not able to fetch account balance")
+        console.error('❌ Error fetching price');
+        process.exit(1);
+        
     }
 }
