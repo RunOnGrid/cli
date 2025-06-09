@@ -11,7 +11,7 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 const BACKEND_URL = process.env.BACKEND_URL_DEV || "https://backend.ongrid.run/"
 
-export const stripePayment = async (amount) => {
+export const stripePayment = async () => {
   try {
     const JWT_TOKEN = await getToken();
     const response = await fetch(`${BACKEND_URL}payment/create-checkout-session`, {
@@ -21,7 +21,6 @@ export const stripePayment = async (amount) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        amount: amount,
         currency: "USD"
       }),
     });
