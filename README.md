@@ -59,7 +59,13 @@ google
 The `logout` command is used to logout your Grid account. This command will delete your access token from your system keychain.
 ```bash
 grid logout 
-```  
+```
+## stripe
+The `stripe` command launches a Stripe Checkout session to purchase credits for your Grid account.
+```bash                                 
+grid stripe
+```
+
 ## git
 The `git` command is used to manage GitHub repositories for Grid deployments. It enables connecting your account to the Grid GitHub App and supports building container images via GitHub Actions.
 ```bash                                 
@@ -84,16 +90,6 @@ list                                    List available deployments in your accou
 id [deployment-id]                      List deployment by id.
 delete [deployment-id]                  Delete deploymeny by id.
 refund [deployment-id]                  Refund an akash deployment. For more information [documentation](https://documentation.ongrid.run/build-deploy/payments/akash)  
-```
-### update
-The `update` command allows you to update app specifications
-```bash
-grid update [provider] [id] [config-path]
-```
-
-```bash
-flux                                    update a flux deployment.             
-akash                                   update a akash deployment.  
 ```
 ### deploy
 The `deploy` command is used to launch a new application deployment to the cloud provider of your choice using either public or private container images.

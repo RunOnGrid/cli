@@ -1,9 +1,9 @@
 {
   "name": "cli-grid",
-  "version": "1.1.5",
+  "version": "2.0.1",
   "type": "module",
   "bin": {
-    "grid": "tsx ./src/bin/index.js"
+    "grid": "./src/bin/index.js"
   },
   "scripts": {
     "start": "./src/bin/index.js"
@@ -36,6 +36,7 @@
     "chalk-animation": "^2.0.3",
     "commander": "^13.1.0",
     "dotenv": "^16.4.7",
+    "eventsource": "^4.0.0",
     "express": "^5.1.0",
     "figlet": "^1.8.0",
     "gradient-string": "^3.0.0",
@@ -43,11 +44,13 @@
     "ink-text-input": "^6.0.0",
     "inquirer": "^12.5.0",
     "js-yaml": "^4.1.0",
+    "jsonwebtoken": "^9.0.2",
     "keytar": "^7.9.0",
     "nanospinner": "^1.2.2",
     "open": "^10.1.0",
     "ora": "^8.2.0",
     "react": "^19.1.0",
+    "smee-client": "^4.2.1",
     "uuid": "^11.1.0"
   },
   "devDependencies": {

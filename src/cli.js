@@ -7,7 +7,7 @@ import { gitCommands } from "./commands/git/git.js";
 import { stripeCommand } from "./commands/payment/stripe.js";
 
 const program = new Command();
-program.name("gridcli").description("CLI GRID").version("1.1.5");
+program.name("gridcli").description("CLI GRID").version("2.0.1");
 program
   .command('help')
   .description('List all available commands')
@@ -54,7 +54,7 @@ Available Commands
   grid update [provider] [id] [config-path]
 --stripe
   Charge credits via stripe
-  grid stripe [amount]
+  grid stripe
 `);
   });
 // Agregar comandos
