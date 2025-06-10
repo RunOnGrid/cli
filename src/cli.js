@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { deploymentsCommand, deploymentUpdate } from "./commands/deployments/deployments.js";
+import { deploymentsCommand } from "./commands/deployments/deployments.js";
 import { login } from "./commands/login/login.js";
 import { deployCommand } from "./commands/deploy/deploy.js";
 import { logout } from "./commands/logout/logout.js";
@@ -59,7 +59,6 @@ Available Commands
   });
 // Agregar comandos
 program.addCommand(deploymentsCommand);
-program.addCommand(deploymentUpdate);
 program.addCommand(login);
 program.addCommand(logout);
 program.addCommand(deployCommand);

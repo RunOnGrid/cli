@@ -1,5 +1,7 @@
 import { Command } from "commander";
-import { redirectGit, getRepositories, gridWorkflow } from "../../service/git/git.js"
+import GridGitManager from "../../service/git/git.js"
+
+const manager = new GridGitManager(); 
 
 
 export const gitCommands = new Command("git")
@@ -7,17 +9,17 @@ export const gitCommands = new Command("git")
 
 const repos = new Command("repos")
     .description("Fetch repositories").action(async () => {
-        const data = await getRepositories();
+        const data = await manager.getRepositories();
         console.log(data);
     })
 const build = new Command("build")
     .description("Build a runnable container image from github repository").action(async () => {
-        await gridWorkflow();
+        await manager.gridWorkflow();
     })
 const connectGit = new Command("connect")
     .description("Connect Github App")
     .action(async () => {
-        await redirectGit();
+        await manager.redirectGit();
     })
 
 

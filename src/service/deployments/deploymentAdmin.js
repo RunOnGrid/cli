@@ -2,134 +2,114 @@ import { getToken } from "../../utils/keyChain.js";
 import path from "path";
 import dotenv from "dotenv";
 import chalk from "chalk";
-import { readConfigFile } from "../../utils/authPath.js"
-
+import { readConfigFile } from "../../utils/authPath.js";
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
-const BACKEND_URL = process.env.BACKEND_URL_DEV || "http://backend.ongrid.run/"
-export const getDeployments = async () => {
+const BACKEND_URL = process.env.BACKEND_URL_DEV || "http://backend.ongrid.run/";
+
+class DeploymentManager {
+  constructor() {
+    this.backendUrl = BACKEND_URL;
+  }
+
+  async getDeployments() {
     try {
-        const jwt = await getToken()
-        const response = await fetch(`${BACKEND_URL}deployments`, {
-            method: "GET",
-            headers: {
-                "Accept": "*/*",
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${jwt}`,
-            },
+      const jwt = await getToken();
+      const response = await fetch(`${this.backendUrl}deployments`, {
+        method: "GET",
+        headers: {
+          "Accept": "*/*",
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${jwt}`,
+        },
+      });
 
-        });
+      if (!response.ok) {
+        throw new Error('Error fetching deployments');
+      }
 
-        if (!response.ok) {
-            throw new Error('Error fetching deployments');
-        }
-
-        const data = await response.json();
-        return data;
-
+      return await response.json();
     } catch (error) {
-        console.error("Error fetching deployments, if the error persist please contact support@ongrid.run");
-        process.exit(1)
+      console.error("❌ Error fetching deployments. If the error persists, contact support@ongrid.run");
+      process.exit(1);
     }
+  }
+
+  async getDeploymentById(id) {
+    try {
+      const jwt = await getToken();
+      const response = await fetch(`${this.backendUrl}deployments/${id}`, {
+        method: "GET",
+        headers: {
+          "Accept": "*/*",
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${jwt}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Error fetching deployment');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("❌ Error fetching deployment. If the error persists, contact support@ongrid.run");
+      process.exit(1);
+    }
+  }
+
+  async deleteDeployment(id) {
+    try {
+      const jwt = await getToken();
+      const response = await fetch(`${this.backendUrl}deployments/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Accept": "*/*",
+          Authorization: `Bearer ${jwt}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (data == 1) {
+        console.log(chalk.green("✅ Deployment successfully deleted"));
+        process.exit(0);
+      } else {
+        console.error(chalk.red("❌ Error deleting deployment. If the problem persists, contact support@ongrid.run"));
+        process.exit(1);
+      }
+    } catch (error) {
+      console.error("❌ Error deleting deployment. If the error persists, contact support@ongrid.run");
+      process.exit(1);
+    }
+  }
+
+  async refundAkash(id) {
+    try {
+      const jwt = await getToken();
+      const response = await fetch(`${this.backendUrl}akash/refund/${id}`, {
+        method: "POST",
+        headers: {
+          "Accept": "*/*",
+          Authorization: `Bearer ${jwt}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.status === 'success') {
+        console.log(chalk.green(`✅ Refund completed successfully. Refund amount: ${data.refundAmount}`));
+        process.exit(0);
+      } else {
+        console.error(chalk.red("❌ Error: Please verify that the deployment has not already been refunded or failed."));
+        process.exit(1);
+      }
+    } catch (error) {
+      console.error("❌ Error refunding deployment. If the error persists, contact support@ongrid.run");
+      process.exit(1);
+    }
+  }
 }
 
-export const getDeploymentById = async (id) => {
-    try {
-        const jwt = await getToken()
-        const response = await fetch(`${BACKEND_URL}deployments/${id}`, {
-            method: "GET",
-            headers: {
-                "Accept": "*/*",
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${jwt}`,
-            },
-
-        });
-        if (!response.ok) {
-            throw new Error(`Error fetching deployment, if the error persist please contact support@ongrid.run`);
-        }
-
-        const data = await response.json();
-        return data;
-    } catch (error) {
-        console.error("Error fetching deployment, if the error persist please contact support@ongrid.run");
-        process.exit(1)
-    }
-}
-export const deleteDeployment = async (id) => {
-    try {
-        const jwt = await getToken();
-        const response = await fetch(`${BACKEND_URL}deployments/${id}`, {
-            method: "DELETE",
-            headers: {
-                "Accept": "*/*",
-                Authorization: `Bearer ${jwt}`
-            },
-        })
-
-        const data = await response.json();
-
-        if (data == 1) {
-            console.log(chalk.green("Deployment successfully deleted"))
-            process.exit(0);
-        } else {
-            spinner.error({ text: "Error deleting deployment, if problem persist: Support@ongrid.run" });
-            process.exit(1);
-        }
-    } catch (error) {
-        console.error("Error deleting deployment, if the error persist please contact support@ongrid.run")
-        process.exit(1)
-    }
-}
-
-export const updateDeployment = async (id, filepath, provider) => {
-    try {
-        const jwt = await getToken();
-        const config = await readConfigFile(filepath, provider);
-        const file = JSON.stringify(config);
-        
-        console.log(file);
-        
-        const response = await fetch(`${BACKEND_URL}deployments/${id}?cloudProvider=${provider}`, {
-            method: "PUT",
-            headers: {
-                "Accept": "application/json",
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${jwt}`,
-            },
-            body: file
-        })
-        
-        const data = await response.json();
-        console.log(data);
-        return;
-    } catch (error) {
-        console.error("Error updating deployment, if the error persist please contact support@ongrid.run", error)
-    }
-}
-
-export const refundAkash = async (id) => {
-    try {
-    
-        const jwt = await getToken();
-        const response = await fetch(`${BACKEND_URL}akash/refund/${id}`, {
-            method: "POST",
-            headers: {
-                "Accept": "*/*",
-                Authorization: `Bearer ${jwt}`,
-            },
-        })
-
-        const data = await response.json();
-
-        if (data.status === 'success') {
-            console.log(chalk.green(`Refund completed successfully. refund amount ${data.refundAmount}`));
-            process.exit(0);
-        }
-        console.log(chalk.red("Error: please verify that the deployment has not already been marked as refunded or failed."));
-        process.exit(1)
-    } catch (error) {
-        console.error("Error refunding deployment, if the error persist please contact support@ongrid.run")
-    }
-}
+export default DeploymentManager;

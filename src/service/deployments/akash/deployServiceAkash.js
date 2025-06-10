@@ -5,11 +5,11 @@ import path from 'path';
 import dotenv from "dotenv";
 import inquirer from "inquirer";
 import { getBalance } from "../../../utils/getBalance.js"
-import { readConfigFile } from "../../../utils/authPath.js"
+import ConfigFileManager from "../../../utils/authPath.js"
 import yaml from "js-yaml";
 import chalk from "chalk";
 
-
+const manager = new ConfigFileManager();
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
@@ -19,7 +19,7 @@ export const deployAkash = async (filePath) => {
     try {
         const jwt = await getToken();
 
-        const config = await readConfigFile(filePath, "AKASH");
+        const config = await manager.readConfigFile(filePath, "AKASH");
         const dataPrice = await getPrice(config, jwt, "AKASH");
         if (isNaN(dataPrice)) {
             console.error(chalk.red("Authorization Token expired, Please Log-in using(grid login google/github)"));

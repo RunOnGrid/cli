@@ -2,16 +2,15 @@ import chalk from 'chalk';
 // import inquirer from "inquirer";
 import { createSpinner } from "nanospinner";
 import { getToken } from "../../../utils/keyChain.js";
-import { getPassword } from "../../../utils/keyChain.js";
 import path from 'path';
 import dotenv from "dotenv"
 import inquirer from "inquirer";
 import { getBalance } from "../../../utils/getBalance.js"
 import { getPrice } from "../../../utils/getPrice.js";
-import { readConfigFile } from "../../../utils/authPath.js"
+import ConfigFileManager from "../../../utils/authPath.js"
 // import axios from "axios";
 
-
+const manager = new ConfigFileManager();
 // Load .env from the project root
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
@@ -23,7 +22,7 @@ export const deployFlux = async (filePath) => {
     try {
         const jwt = await getToken();
         
-        const config = await readConfigFile(filePath, "FLUX");
+        const config = await manager.readConfigFile(filePath, "FLUX");
         console.log(config);
 
         const dataPrice = await getPrice(config, jwt, "FLUX");

@@ -1,18 +1,10 @@
 #!/user/bin/env node
 import { Command } from "commander";
 import { deployFlux } from "../../service/deployments/flux/deployServiceFlux.js";
-import { deployAkash } from "../../service/deployments/akash/deployServiceAkash.js";
-import { getToken } from '../../utils/keyChain.js';
+import { deployAkash } from "../../service/deployments/akash/deployServiceAkash.js";import { getToken } from '../../utils/keyChain.js';
 
 export const deployCommand = new Command("deploy")
   .description("Deploy an application")
-  .argument("<provider>", "Cloud provider (flux or akash)")
-  .argument("<config-path>", "Path to configuration file")
-  .action(async (provider, configPath) => {
-    const token = await getToken();
-    // Implement deployment logic here
-    console.log(`Deploying to ${provider} with config from ${configPath}`);
-  });
 
 const fluxSubcommand = new Command("flux")
   .description("Deploy on Flux")
