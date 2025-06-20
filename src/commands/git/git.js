@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import GridGitManager from "../../service/git/git.js"
+import chalk from "chalk";
 
 const manager = new GridGitManager(); 
 
@@ -19,7 +20,11 @@ const build = new Command("build")
 const connectGit = new Command("connect")
     .description("Connect Github App")
     .action(async () => {
-        await manager.redirectGit();
+        try {
+            await manager.redirectGit();
+        } catch (error) {
+            process.exit(1);
+        }
     })
 
 

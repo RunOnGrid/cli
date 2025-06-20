@@ -5,9 +5,10 @@ import { deployCommand } from "./commands/deploy/deploy.js";
 import { logout } from "./commands/logout/logout.js";
 import { gitCommands } from "./commands/git/git.js";
 import { stripeCommand } from "./commands/payment/stripe.js";
+import {logs} from "./commands/logs/logs.js"
 
 const program = new Command();
-program.name("gridcli").description("CLI GRID").version("2.0.1");
+program.name("gridcli").description("CLI GRID").version("2.0.2");
 program
   .command('help')
   .description('List all available commands')
@@ -49,16 +50,21 @@ Available Commands
     Providers:
       flux
       akash
---update
-  Update a deployment 
-  grid update [provider] [id] [config-path]
+--logs
+  Charge credits via stripe
+  grid logs [provider]
+  Providers:
+      flux
+      akash(Soon)
 --stripe
   Charge credits via stripe
   grid stripe
 `);
   });
 // Agregar comandos
-program.addCommand(deploymentsCommand);
+
+program.addCommand(logs)
+program.addCommand(deploymentsCommand)
 program.addCommand(login);
 program.addCommand(logout);
 program.addCommand(deployCommand);

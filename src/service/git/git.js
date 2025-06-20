@@ -65,54 +65,66 @@ class GridGitManager {
         const server = http.createServer();
         const spinner = createSpinner('Waiting for GitHub installation to be completed').start();
 
-        server.listen(this.port, '127.0.0.1', () => {
-            console.log(chalk.blue('\nOpening GitHub installation page...'));
-            open(this.gitConnector);
-        });
-
-        return new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => {
-                server.close();
-                spinner.error({ text: 'Timed out waiting for installation.' });
-                reject('GitHub installation timed out.');
-            }, 120000);
-
-            server.once('request', async (req, res) => {
-                clearTimeout(timeout);
-                const url = new URL(req.url || '', `http://localhost:${this.port}`);
-                const installationId = url.searchParams.get('installation_id');
-                const setupAction = url.searchParams.get('setup_action');
-
-                if (installationId && setupAction === 'install') {
-                    await this.postUser(installationId);
-                    res.writeHead(200, { 'Content-Type': 'text/html' });
-                    res.end(`
-                        <html>
-                            <head>
-                                <title>Installation Successful</title>
-                                <style>body{display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#f5f5f5}.success{padding:2rem;background:#fff;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);text-align:center}h1{color:#2ea44f}</style>
-                            </head>
-                            <body><div class="success"><h1>Installation Successful</h1><p>You can now close this window and return to the CLI.</p></div></body>
-                        </html>`);
-                    spinner.success({ text: 'GitHub app installation completed successfully!' });
-                    resolve(installationId);
-                    process.exit(0);
-                } else {
-                    res.writeHead(400, { 'Content-Type': 'text/plain' });
-                    res.end('Invalid installation response');
-                    spinner.error({ text: 'Installation failed or was cancelled' });
-                    reject(new Error('Invalid installation response'));
-                }
-
-                server.close();
+        try {
+            server.listen(this.port, '127.0.0.1', () => {
+                console.log(chalk.blue('\nOpening GitHub installation page...'));
+                open(this.gitConnector);
             });
 
-            server.once('error', (err) => {
-                clearTimeout(timeout);
-                server.close();
-                reject(new Error(`Server error: ${err.message}`));
+            return await new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    server.close();
+                    spinner.error({ text: 'Timed out waiting for installation.' });
+                    reject(new Error('GitHub installation timed out. Please try again.'));
+                }, 120000);
+
+                server.once('request', async (req, res) => {
+                    try {
+                        clearTimeout(timeout);
+                        const url = new URL(req.url || '', `http://localhost:${this.port}`);
+                        const installationId = url.searchParams.get('installation_id');
+                        const setupAction = url.searchParams.get('setup_action');
+
+                        if (installationId && setupAction === 'install') {
+                            await this.postUser(installationId);
+                            res.writeHead(200, { 'Content-Type': 'text/html' });
+                            res.end(`
+                                <html>
+                                    <head>
+                                        <title>Installation Successful</title>
+                                        <style>body{display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;background:#f5f5f5}.success{padding:2rem;background:#fff;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);text-align:center}h1{color:#2ea44f}</style>
+                                    </head>
+                                    <body><div class="success"><h1>Installation Successful</h1><p>You can now close this window and return to the CLI.</p></div></body>
+                                </html>`);
+                            spinner.success({ text: 'GitHub app installation completed successfully!' });
+                            resolve(installationId);
+                            process.exit(0);
+                        } else {
+                            res.writeHead(400, { 'Content-Type': 'text/plain' });
+                            res.end('Invalid installation response');
+                            spinner.error({ text: 'Installation failed or was cancelled' });
+                            reject(new Error('Invalid installation response'));
+                        }
+                    } catch (error) {
+                        spinner.error({ text: `Error during installation: ${error.message}` });
+                        reject(error);
+                    } finally {
+                        server.close();
+                    }
+                });
+
+                server.once('error', (err) => {
+                    clearTimeout(timeout);
+                    server.close();
+                    spinner.error({ text: `Server error: ${err.message}` });
+                    reject(new Error(`Server error: ${err.message}`));
+                });
             });
-        });
+        } catch (error) {
+            server.close();
+            spinner.error({ text: `Installation failed: ${error.message}` });
+            throw error;
+        }
     }
 
     async getRepositories() {

@@ -2,17 +2,16 @@ import { getToken } from "../../utils/keyChain.js";
 import path from "path";
 import dotenv from "dotenv";
 import chalk from "chalk";
-import { readConfigFile } from "../../utils/authPath.js";
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
-const BACKEND_URL = process.env.BACKEND_URL_DEV || "http://backend.ongrid.run/";
+const BACKEND_URL = process.env.BACKEND_URL_DEV || "https://backend.ongrid.run/";
 
 class DeploymentManager {
   constructor() {
     this.backendUrl = BACKEND_URL;
   }
-
+  
   async getDeployments() {
     try {
       const jwt = await getToken();
@@ -23,13 +22,12 @@ class DeploymentManager {
           "Content-Type": "application/json",
           Authorization: `Bearer ${jwt}`,
         },
-      });
-
+      });    
       if (!response.ok) {
         throw new Error('Error fetching deployments');
       }
-
-      return await response.json();
+      const data = response.json();
+      return data
     } catch (error) {
       console.error("❌ Error fetching deployments. If the error persists, contact support@ongrid.run");
       process.exit(1);
