@@ -18,7 +18,7 @@ const BACKEND_URL = process.env.BACKEND_URL_DEV || "http://backend.ongrid.run/"
 export const deployAkash = async (filePath) => {
     try {
         const jwt = await getToken();
-
+      
         const config = await manager.readConfigFile(filePath, "AKASH");
         const dataPrice = await getPrice(config, jwt, "AKASH");
         if (isNaN(dataPrice)) {
