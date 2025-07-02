@@ -10,8 +10,9 @@ const BACKEND_URL = process.env.BACKEND_URL_DEV || "https://backend.ongrid.run/"
 class DeploymentManager {
   constructor() {
     this.backendUrl = BACKEND_URL;
+    this.jwt = getToken()
   }
-  
+
   async getDeployments() {
     try {
       const jwt = await getToken();
@@ -22,7 +23,8 @@ class DeploymentManager {
           "Content-Type": "application/json",
           Authorization: `Bearer ${jwt}`,
         },
-      });    
+      });
+
       if (!response.ok) {
         throw new Error('Error fetching deployments');
       }
@@ -72,7 +74,7 @@ class DeploymentManager {
 
       if (data == 1) {
         console.log(chalk.green("✅ Deployment successfully deleted"));
-        process.exit(0);
+        return
       } else {
         console.error(chalk.red("❌ Error deleting deployment. If the problem persists, contact support@ongrid.run"));
         process.exit(1);
@@ -80,6 +82,23 @@ class DeploymentManager {
     } catch (error) {
       console.error("❌ Error deleting deployment. If the error persists, contact support@ongrid.run");
       process.exit(1);
+    }
+  }
+  async deleteAllFailedDeployments() {
+    try {
+      const data = await this.getDeployments(); // o como obtengas los deployments
+      const failedDeployments = data
+        .filter(deployment => deployment.status === "Failed")
+        .map(deployment => deployment.id);
+      console.log(failedDeployments);
+      
+        for (let index = 0; index < failedDeployments.length; index++) {
+          console.log(failedDeployments[index]);
+          await this.deleteDeployment(failedDeployments[index])
+        }
+    
+    } catch (error) {
+      console.error("❌ Error deleting deployment. If the error persists, contact support@ongrid.run")
     }
   }
 

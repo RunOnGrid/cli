@@ -31,15 +31,20 @@ const deploymentRefund = new Command("refund")
     })
 
 const deploymentDelete = new Command("delete")
-    .description("Delete deployment by id")
-    .argument("<id>", "ID of deployment")
-    .action(async (id) => {
-        if (!id) {
-            console.log("Missing ID");
+    .description("Delete deployment by id or delete all failed deployments with 'failed'")
+    .argument("<idOrKeyword>", "ID of deployment or 'failed' to delete all failed deployments")
+    .action(async (idOrKeyword) => {
+        if (!idOrKeyword) {
+            console.log("Missing ID or keyword");
             return;
         }
-        await manager.deleteDeployment(id);
+        if (idOrKeyword === "failed") {
+            await manager.deleteAllFailedDeployments();
+        } else {
+            await manager.deleteDeployment(idOrKeyword);
+        }
     });
+
 
 deploymentsCommand.addCommand(deploymentsLsCommand);
 deploymentsCommand.addCommand(deploymentsByIdCommand);

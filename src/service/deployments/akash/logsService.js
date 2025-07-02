@@ -10,39 +10,50 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 class AkashLogsService {
     constructor() {
-        this.BACKEND_URL = process.env.BACKEND_URL || "https://localhost:8087/";
-        this.WS_URL = process.env.WS_URL_DEV || "ws://localhost:8087";
+        this.BACKEND_URL = process.env.BACKEND_URL_DEV || "https://backend.ongrid.run/";
+        this.WS_URL = process.env.WS_URL_DEV || "ws://backend.ongrid.run";
         this.jwt = getToken();
         this.deployments = new DeploymentManager();
     }
 
     async getLogs() {
         try {
-          
+            const jwt = await this.jwt
             const selectedDeployment = await this.getAkashDeployment();
-
+            
             if (!selectedDeployment) {
                 console.log(chalk.yellow("No Akash deployments found."));
                 process.exit(0);
             }
-
-            console.log(chalk.blue("🔌 Connecting to WebSocket for real-time logs..."));
-            
+             const response = await this.validateDeploymentAkash(selectedDeployment.providerId)           
+              
             // Connect to WebSocket
             const ws = new WebSocket(`${this.WS_URL}`);
             
             ws.on('open', () => {
-                console.log(chalk.green("✅ Connected to WebSocket server"));
+                // Primero, autenticación
+                const authRequest = {
+                    type: "auth",
+                    token: jwt
+                };
+                ws.send(JSON.stringify(authRequest));
+
+                // Luego, la petición de logs
+                const { id, gseq, oseq } = response[0] || {};
                 
-                // Send request for logs
+                if (!id || !gseq || !oseq) {
+                    console.error(chalk.red("❌ Faltan campos requeridos para la petición de logs (dseq, gseq, oseq)"));
+                    ws.close();
+                    return;
+                }
+                
                 const logRequest = {
                     type: 'request-logs',
-                    provider_uri: selectedDeployment.provider_uri,
-                    dseq: selectedDeployment.dseq,
-                    gseq: selectedDeployment.gseq,
-                    oseq: selectedDeployment.oseq
+                    provider_uri: this.getProviderUri(selectedDeployment.uri),
+                    dseq: id.toString(),
+                    gseq: gseq.toString(),
+                    oseq: oseq.toString(),
                 };
-                
                 ws.send(JSON.stringify(logRequest));
             });
 
@@ -50,16 +61,17 @@ class AkashLogsService {
                 try {
                     const message = JSON.parse(data.toString());
                     
-                    if (message.type === 'log') {
-                        // Display log message
-                        console.log(chalk.cyan(`[${new Date().toISOString()}] ${message.content}`));
+                    if (message.type === "log") {
+                        console.log(chalk.white(`[${new Date().toISOString()}] ${JSON.stringify(message.data, null, 2)}`));
                     } else if (message.type === 'error') {
                         console.error(chalk.red(`❌ Error: ${message.error}`));
+                        process.exit(1)
                     } else if (message.type === 'status') {
                         console.log(chalk.yellow(`ℹ️  ${message.message}`));
+                    }else if (message.type === "auth-error"){
+                        console.error(chalk.red("🔒 Auth error: Your session has expired or you are not logged in. Please log in again."));
                     }
                 } catch (error) {
-                    // If it's not JSON, treat as raw log data
                     console.log(chalk.white(data.toString()));
                 }
             });
@@ -95,7 +107,7 @@ class AkashLogsService {
             const akashDeployments = data
                 .filter(deployment => deployment.cloudProvider === "AKASH" && deployment.status === "Deployed")
                 .map(deployment => ({
-                    id: deployment.configurationDetails.id,
+                    id: deployment.id,
                     providerId: deployment.providerId,
                     uri: deployment.uri,
                     status: deployment.status,
@@ -128,38 +140,37 @@ class AkashLogsService {
         }
     }
 
-    // Alternative method for direct connection without WebSocket (fallback)
-    async getLogsDirect(provider_uri, dseq, gseq, oseq) {
+  
+    async validateDeploymentAkash(deployId) {
         try {
-            const jwt = await this.jwt;
+            const jwt = await this.jwt
             
-            const response = await fetch(`${this.BACKEND_URL}logs/akash`, {
-                method: "POST",
+            const response = await fetch(`${this.BACKEND_URL}logs/akash?deployId=${deployId}`, {
+                method: "GET",
                 headers: {
-                    "Content-Type": "application/json",
                     Authorization: `Bearer ${jwt}`
-                },
-                body: JSON.stringify({
-                    provider_uri,
-                    dseq,
-                    gseq,
-                    oseq
-                })
+                }
             });
-
+            
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-
-            const logs = await response.json();
-            console.log(chalk.cyan("📋 Deployment Logs:"));
-            console.log(logs);
+            const data = await response.json()
+            
+            return data
             
         } catch (error) {
-            console.error(chalk.red("❌ Error fetching logs directly:"));
-            console.error(chalk.red(`Error details: ${error.message}`));
+            console.error(chalk.red(`Error`));
             throw error;
         }
+    }
+
+    getProviderUri(uri) {
+        // Encuentra el índice del segundo punto
+        const firstDot = uri.indexOf('.');
+        const secondDot = uri.indexOf('.', firstDot + 1);
+        if (secondDot === -1) return uri; // Si no hay dos puntos, devuelve igual
+        return 'provider' + uri.slice(secondDot);
     }
 }
 
