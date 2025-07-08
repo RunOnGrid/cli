@@ -11,7 +11,7 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 class AkashLogsService {
     constructor() {
         this.BACKEND_URL = process.env.BACKEND_URL_DEV || "https://backend.ongrid.run/";
-        this.WS_URL = process.env.WS_URL_DEV || "ws://backend.ongrid.run";
+        this.WS_URL =  "ws://localhost:8087";
         this.jwt = getToken();
         this.deployments = new DeploymentManager();
     }
@@ -25,12 +25,15 @@ class AkashLogsService {
                 console.log(chalk.yellow("No Akash deployments found."));
                 process.exit(0);
             }
-             const response = await this.validateDeploymentAkash(selectedDeployment.providerId)           
-              
+            const response = await this.validateDeploymentAkash(selectedDeployment.providerId)           
+            
             // Connect to WebSocket
             const ws = new WebSocket(`${this.WS_URL}`);
             
+            
+            
             ws.on('open', () => {
+                
                 // Primero, autenticación
                 const authRequest = {
                     type: "auth",
@@ -54,6 +57,8 @@ class AkashLogsService {
                     gseq: gseq.toString(),
                     oseq: oseq.toString(),
                 };
+                console.log(logRequest);
+                
                 ws.send(JSON.stringify(logRequest));
             });
 

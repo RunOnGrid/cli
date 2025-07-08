@@ -13,7 +13,7 @@ const manager = new ConfigFileManager();
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
-const BACKEND_URL = process.env.BACKEND_URL_DEV || "http://backend.ongrid.run/"
+const BACKEND_URL = "http://backend.ongrid.run/"
 
 export const deployAkash = async (filePath) => {
     try {

@@ -8,7 +8,7 @@ import { stripeCommand } from "./commands/payment/stripe.js";
 import {logs} from "./commands/logs/logs.js"
 
 const program = new Command();
-program.name("gridcli").description("CLI GRID").version("2.0.3");
+program.name("gridcli").description("CLI GRID").version("2.1.5");
 program
   .command('help')
   .description('List all available commands')

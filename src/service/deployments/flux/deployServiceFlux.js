@@ -14,7 +14,7 @@ const manager = new ConfigFileManager();
 // Load .env from the project root
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
-const BACKEND_URL = process.env.BACKEND_URL_DEV || "https://backend.ongrid.run/"
+const BACKEND_URL = "https://backend.ongrid.run/"
 
 
 

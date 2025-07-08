@@ -12,7 +12,7 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 class logsService {
 
     constructor() {
-        this.BACKEND_URL = process.env.BACKEND_URL_DEV || "https://backend.ongrid.run/";
+        this.BACKEND_URL = "https://backend.ongrid.run/";
         this.jwt = getToken();
         this.deployments = new DeploymentManager();
     }
