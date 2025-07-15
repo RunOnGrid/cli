@@ -6,9 +6,10 @@ import { logout } from "./commands/logout/logout.js";
 import { gitCommands } from "./commands/git/git.js";
 import { stripeCommand } from "./commands/payment/stripe.js";
 import {logs} from "./commands/logs/logs.js"
+import {appCommand} from "./commands/appMethods/appMethods.js"
 
 const program = new Command();
-program.name("gridcli").description("CLI GRID").version("2.1.5");
+program.name("gridcli").description("CLI GRID").version("2.6.6");
 program
   .command('help')
   .description('List all available commands')
@@ -50,6 +51,15 @@ Available Commands
     Providers:
       flux
       akash
+--app methods
+  Control applications & deployments
+  grid app <method>
+  methods:
+      start
+      pause
+      restart
+      unpause
+      gsoft
 --logs
   Charge credits via stripe
   grid logs [provider]
@@ -70,4 +80,5 @@ program.addCommand(logout);
 program.addCommand(deployCommand);
 program.addCommand(gitCommands);
 program.addCommand(stripeCommand);
+program.addCommand(appCommand)
 program.parse(process.argv);

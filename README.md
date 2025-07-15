@@ -1,13 +1,10 @@
 <p align="center">
-  <a href="https://ongrid.run">
-    <img src="src/public/grid-logo.png" height="96">
-    <h3 align="center">Grid</h3>
-  </a>
+    <img src="https://imagedelivery.net/EXhaUxjEp-0lLrNJjhM2AA/d4e80dd3-61e5-4b44-2495-c2594875dc00/public" height="96" />
 </p>
 
-<p align="center">
-  Build. Connect. Deploy.
-</p>
+# Grid
+
+Build. Connect. Deploy.
 
 <p align="center">
   <a href="https://documentation.ongrid.run"><strong>Documentation</strong></a> ·
@@ -102,6 +99,21 @@ grid deploy [provider] [config-path]    Start a new deployment on Grid.
 flux                                    Deploy your container image to Flux.             
 akash                                   Deploy your container image to Akash.
 ```
+### App methods
+The `app` command is used to  manage container instances on flux.
+```bash                            
+grid app [method]   
+                                        For more information, see the [documentation](https://documentation.ongrid.run/build-deploy/grid-cli/commands/appMethods). 
+```
+### method
+```bash
+restart                            Restarts a specific instance.            
+pause                              Temporarily stops a specific instance without terminating it.
+start                              Starts a specific instance that is currently stopped.
+unpause                            Resumes a paused instance.
+gsoft                              Reinstalls your applications on all instances from your container repo.
+```
+
 
 
 

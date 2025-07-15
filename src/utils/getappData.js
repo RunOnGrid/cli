@@ -1,21 +1,20 @@
-import { getToken } from "../../../utils/keyChain.js";
+import { getToken } from "./keyChain.js";
 import path from "path";
 import dotenv from "dotenv";
 import chalk from "chalk";
-import DeploymentManager from "../deploymentAdmin.js"
+import DeploymentManager from "../service/deployments/deploymentAdmin.js"
 import inquirer from 'inquirer';
-import appDataFlux from "../../../utils/getappData.js";
+
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 
-class logsService {
+class appDataFlux {
 
     constructor() {
         this.BACKEND_URL = process.env.BACKEND_URL_DEV || "https://backend.ongrid.run/";
         this.jwt = getToken();
         this.deployments = new DeploymentManager();
-        this.appData = new appDataFlux()
     }
     getProviderUri(uri) {
         // Encuentra el índice del segundo punto
@@ -23,30 +22,10 @@ class logsService {
         if (firstDot === -1) return uri; // Si no hay punto, devuelve todo
         return uri.slice(0, firstDot);
     }
-    async getLogs() {
-        try {
-            const jwt = await this.jwt;
-            const selectedApp = await this.appData.getAppData();
-            const ips = await this.appData.getAppips(selectedApp.composeName)
-            
-
-            const response = await fetch(`${this.BACKEND_URL}logs/flux?composeName=${selectedApp.appName}&appName=${selectedApp.composeName}&ip=${ips}`, {
-                method: "GET",
-                headers: {
-                    authorization: `Bearer ${jwt}`
-                }
-            })
-            console.log(await response.json());
-            process.exit(0);
-        } catch (error) {
-            console.error(chalk.red("❌ Error fetching logs. If the problem persists, contact support@ongrid.run"));
-            process.exit(1)
-        }
-    }
-
     async getAppData() {
         try {
             const data = await this.deployments.getDeployments();
+         
             
             const apps = data.map(app => ({
                 composeName: app.configurationDetails?.name || false,
@@ -61,8 +40,7 @@ class logsService {
                 name: `${app.composeName} (${app.appName})`,
                 value: app
             }));
-            
-            
+
             const { selectedApp } = await inquirer.prompt([
                 {
                     type: 'list',
@@ -71,7 +49,6 @@ class logsService {
                     choices
                 }
             ]);
-
             return selectedApp;
         } catch (error) {
             console.error(chalk.red("❌ Error fetching apps. If the problem persists, contact support@ongrid.run"));
@@ -103,7 +80,11 @@ class logsService {
                     choices: ips
                 }
             ]);
-           
+            if (!selectedIp.includes(":")) {
+                const formatedIp = selectedIp + ":16127"
+                return formatedIp.replace(/[.:]/g, "-");
+            }
+
             return selectedIp.replace(/[.:]/g, "-");
         } catch (error) {
             console.error(chalk.red("❌ Error fetching ips. If the problem persists, contact support@ongrid.run"));
@@ -112,4 +93,4 @@ class logsService {
     }
 }
 
-export default logsService
+export default appDataFlux

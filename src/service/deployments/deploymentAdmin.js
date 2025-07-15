@@ -5,11 +5,10 @@ import chalk from "chalk";
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
-const BACKEND_URL = "https://backend.ongrid.run/";
 
 class DeploymentManager {
   constructor() {
-    this.backendUrl = BACKEND_URL;
+    this.backendUrl = process.env.BACKEND_URL_DEV || "https://backend.ongrid.run/";
     this.jwt = getToken()
   }
 
@@ -24,7 +23,7 @@ class DeploymentManager {
           Authorization: `Bearer ${jwt}`,
         },
       });
-
+      
       if (!response.ok) {
         throw new Error('Error fetching deployments');
       }
