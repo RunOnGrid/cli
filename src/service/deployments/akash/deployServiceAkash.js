@@ -1,11 +1,17 @@
 import { getMnemonic } from "../../../utils/keyChain.js";
 import path from 'path';
+import { select } from '@inquirer/prompts';
 import dotenv from "dotenv";
 import Long from "long";
 import { createChainNodeSDK, createStargateClient, SDL } from "@akashnetwork/chain-sdk";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import fs from "fs"
 import { calculateDeploymentMetrics } from "../../../helpers/akashHelper.js";
+
+
+const SECONDS_PER_BLOCK = 6.098; // tune if chain varies
+const DAYS_PER_MONTH = 30;   // or 30.44 for average month
+const BLOCKS_PER_MONTH = Math.round((DAYS_PER_MONTH * 24 * 3600) / SECONDS_PER_BLOCK);
 
 
 
@@ -53,18 +59,42 @@ class deployManager {
     };
 
     // 5) Send tx to create deployment
-    const createRes = await chainSdk.akash.deployment.v1beta4.createDeployment(deploymentMsg)
+    await chainSdk.akash.deployment.v1beta4.createDeployment(deploymentMsg)
 
+    
+    const bids = await this.getBidsForDeployment((dseq.low));
+    console.log(bids);
+    
 
+    const UAKT_PER_AKT = 1_000_000;
+
+    const choices = bids.map((b) => {
+      const priceAKT = ((b.PricePerMonth ?? 0) * 0.7);
+      
+      const label = `${b.providerName ?? 'Unknown'} • ${b.providerIpCountry ?? ''} • ${b.providerIpRegion ?? ''} • $${priceAKT} month • Uptime30d ${b.providerUptime30d * 100}% `;
+      return {
+        name: label,
+        value: {
+          ...b,
+          pricePerMonthAKT: priceAKT,
+        },
+      };
+    });
+
+    const answer = await select({
+      message: 'Select a provider',
+      choices,
+    });
+
+    // await chainSdk.akash.market.v1beta5.createLease(selectedBid);
 
     // 6) Send manifest to a provider afterwards (choose a provider URL)
     // const manifest = sdl.manifest();
     // await providerSdk.sendManifest({ dseq, manifest, ...auth });
-
-    return createRes;
   };
 
   async getBidsForDeployment(dseqInput) {
+
     const mnemonic = await getMnemonic();
     const wallet = await DirectSecp256k1HdWallet.fromMnemonic(mnemonic, { prefix: "akash" });
     const [{ address }] = await wallet.getAccounts();
@@ -79,22 +109,17 @@ class deployManager {
       tx: { signer },
     });
 
-    const dseq = Long.fromString(String(dseqInput), true);
     const providersResp = await fetch("https://console-api.akash.network/v1/providers");
-    
+
     const providersJson = await providersResp.json();
     const providers = Array.isArray(providersJson) ? providersJson : (providersJson?.providers ?? []);
-    console.log(providers);
-    
-  
+
 
     const page = await chainSdk.akash.market.v1beta5.getBids({
-      filters: { owner: address, dseq }, // optionally add: state: "open"
+      filters: { owner: address, dseqInput }, // optionally add: state: "open"
       pagination: { limit: 100 },
     });
     const bids = page?.bids ?? [];
-
-    
 
     const latestBlockResp = await chainSdk.cosmos.base.tendermint.v1beta1.getLatestBlock();
     const latestHeight = Number(latestBlockResp?.block?.header?.height ?? 0);
@@ -102,20 +127,11 @@ class deployManager {
     const detailedBids = await Promise.all(
       bids.map(async (b) => {
         const providerOwner = b?.bid.id.provider;
-        console.log(b.bid);
-        
-        
+
         const provider = providers.find((p) => p.owner === providerOwner);
-        console.log(provider);
-        
-        
-        const dseqNum = Number(dseq.toString());
-        
-        const metrics = calculateDeploymentMetrics(dseqNum, latestHeight, b.bid.price.amount, b.escrowAccount.state.funds[0]);
-        const attrs = provider?.attributes ?? [];
-        const attrsMap = Object.fromEntries(attrs.map(a => [a.key, a.value]));
-        
-        
+
+        const metrics = calculateDeploymentMetrics(dseqInput, latestHeight, b.bid.price.amount, b.escrowAccount.state.funds[0]);
+
         return {
           providerName: provider?.name,
           providerHostUri: provider?.hostUri,
@@ -131,23 +147,36 @@ class deployManager {
           providerIsOnline: provider?.isOnline,
           providerIsAudited: provider?.isAudited,
           providerOwner: provider?.owner,
-          bidId: b?.bid?.bidId,
-          bid: b,
+          bidId: b?.bid?.id,
           bidPriceMonthly: metrics,
           pricePerBlock: metrics.pricePerBlockUakt,
         };
       }));
 
 
-    // detailedBids.sort((a, b) => {
-    //   if (a.providerIsAudited && !b.providerIsAudited) return -1;
-    //   if (!a.providerIsAudited && b.providerIsAudited) return 1;
-    //   if (a.pricePerBlock < b.pricePerBlock) return -1;
-    //   if (a.pricePerBlock > b.pricePerBlock) return 1;
-    //   return b.providerUptime30d - a.providerUptime30d;
-    // });
+    detailedBids.sort((a, b) => {
+      if (a.providerIsAudited && !b.providerIsAudited) return -1;
+      if (!a.providerIsAudited && b.providerIsAudited) return 1;
+      if (a.pricePerBlock < b.pricePerBlock) return -1;
+      if (a.pricePerBlock > b.pricePerBlock) return 1;
+      return b.providerUptime30d - a.providerUptime30d;
+    });
 
-    return { bids: detailedBids, pagination: { total: detailedBids.length } };
+    const projected = detailedBids.map((b) => {
+      const pricePerMonthUAKT = (b.pricePerBlock ?? 0) * BLOCKS_PER_MONTH;
+      const pricePerMonthAKT = pricePerMonthUAKT / UAKT_PER_AKT;
+    
+      return {
+        providerName: b.providerName,
+        providerRegion: b.providerIpRegion,
+        providerCountry: b.providerIpCountry,
+        providerUptime30d: b.providerUptime30d,
+        providerIsAudited: b.providerIsAudited,
+        PricePerMonth: pricePerMonthAKT,      // en AKT// opcional, en uakt
+      };
+    });
+
+    return projected;
   }
 }
 

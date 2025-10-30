@@ -3,7 +3,6 @@ import path from "path";
 import dotenv from "dotenv";
 import chalk from "chalk";
 import DeploymentManager from "../deploymentAdmin.js";
-import inquirer from 'inquirer';
 import WebSocket from 'ws';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });

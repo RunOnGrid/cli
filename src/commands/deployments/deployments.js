@@ -56,7 +56,6 @@ const deploymentBids = new Command("bids")
     .description("List bids for a deployment (by dseq)")
     .argument("<dseq>", "Deployment sequence (dseq)")
     .action(async (dseq) => {
-        console.log("asd");
         
         const result = await deployMgr.getBidsForDeployment(dseq);
         const list = result?.bids ?? [];
