@@ -1,34 +1,22 @@
 #!/user/bin/env node
 import { Command } from "commander";
-import { deployFlux } from "../../service/deployments/flux/deployServiceFlux.js";
-import { deployAkash } from "../../service/deployments/akash/deployServiceAkash.js";import { getToken } from '../../utils/keyChain.js';
+
+import deployManager from "../../service/deployments/akash/deployServiceAkash.js";
+
+const manager = new deployManager()
 
 export const deployCommand = new Command("deploy")
-  .description("Deploy an application")
+  .description("Deploy a database on grid")
 
-const fluxSubcommand = new Command("flux")
-  .description("Deploy on Flux")
-  .argument("<config>", "Path to configuration JSON file (absolute path)")
-  .action(async (config) => {
-    try {
-      await deployFlux(config);
-    } catch (error) {
-      console.error(error);
-      process.exit(1); 
-    }
-  });
-
-const akashSubcommand = new Command("akash")
-  .description("Deploy on Akash")
-  .argument("<config>", "Path to configuration Yaml file (absolute path)")
+const redisSubcommand = new Command("redis")
+  .description("Deploy a redis instance")
   .action(async (config) => {
       try {
-        await deployAkash(config)
+        await manager.deployRedis()
       } catch (error) {
         console.error(error);
         process.exit(1)
       }
   })
 
-deployCommand.addCommand(akashSubcommand);
-deployCommand.addCommand(fluxSubcommand);
+deployCommand.addCommand(redisSubcommand);

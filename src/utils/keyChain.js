@@ -16,13 +16,13 @@ export async function deletePassword(account) {
 
 // Funciones específicas para el token de autenticación (manteniendo compatibilidad)
 export async function saveToken(token) {
-    await savePassword("user", token);
+    await savePassword("wallet", token);
 }
 
-export async function getToken() {
-    return await getPassword("user");
+export async function getMnemonic() {
+    return await getPassword("wallet");
 }
 
 export async function deleteToken() {
-    return await deletePassword("user");
+    return await deletePassword("wallet");
 }

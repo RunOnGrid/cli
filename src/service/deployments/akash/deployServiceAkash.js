@@ -1,106 +1,154 @@
-import { getPrice } from "../../../utils/getPrice.js";
-import { createSpinner } from "nanospinner";
-import { getToken } from "../../../utils/keyChain.js";
+import { getMnemonic } from "../../../utils/keyChain.js";
 import path from 'path';
 import dotenv from "dotenv";
-import inquirer from "inquirer";
-import { getBalance } from "../../../utils/getBalance.js"
-import ConfigFileManager from "../../../utils/authPath.js"
-import yaml from "js-yaml";
-import chalk from "chalk";
+import Long from "long";
+import { createChainNodeSDK, createStargateClient, SDL } from "@akashnetwork/chain-sdk";
+import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
+import fs from "fs"
+import { calculateDeploymentMetrics } from "../../../helpers/akashHelper.js";
 
-const manager = new ConfigFileManager();
+
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
-const BACKEND_URL = "http://backend.ongrid.run/"
+class deployManager {
+  constructor() {
+    this.rpc = "https://rpc.akashnet.net:443"
+    this.grpc = "https://akash-grpc.publicnode.com:443"
+  }
+  async deployRedis() {
 
-export const deployAkash = async (filePath) => {
-    try {
-        const jwt = await getToken();
-      
-        const config = await manager.readConfigFile(filePath, "AKASH");
-        const dataPrice = await getPrice(config, jwt, "AKASH");
-        if (isNaN(dataPrice)) {
-            console.error(chalk.red("Authorization Token expired, Please Log-in using(grid login google/github)"));
-            return;
-        }
+    const mnemonic = await getMnemonic();
+    const wallet = await DirectSecp256k1HdWallet.fromMnemonic(mnemonic, { prefix: "akash" });
+    const [{ address }] = await wallet.getAccounts();
 
-        console.log(chalk.green("Price: $", dataPrice.toFixed(2)));
+    const signer = createStargateClient({
+      baseUrl: this.rpc,
+      signerMnemonic: mnemonic
+    });
 
-        const payments = await inquirer.prompt([
-            {
-                type: "list",
-                name: "paymentAuthorized",
-                message: "Authorize payment(y/n)",
-                choices: [
-                    {
-                        name: 'y',
-                        value: true
-                    },
-                    {
-                        name: 'n',
-                        value: false
-                    }
-                ],
-            }
-        ]);
+    const chainSdk = createChainNodeSDK({
+      query: { baseUrl: this.grpc },  // gRPC (host:port)
+      tx: { signer }
+    });
 
-        if (payments.paymentAuthorized === false) {
-            console.log(chalk.red("Payment cancelled"))
-            process.exit(1);
-        }
-        const userBalance = await getBalance();
+    const rawSDL = fs.readFileSync("/Users/benjaminaguirre/Documents/cli/redis.yaml", "utf8");
+    const sdl = SDL.fromString(rawSDL);
+
+
+    const groups = sdl.groups();
+    const manifestHash = await sdl.manifestVersion();
+
+    const latestBlock = await chainSdk.cosmos.base.tendermint.v1beta1.getLatestBlock();
+    const dseq = Long.fromString(String(latestBlock.block?.header?.height ?? Date.now()), true);
+
+    const deploymentMsg = {
+      id: { owner: address, dseq },
+      groups,
+      hash: manifestHash,
+      deposit: {
+        amount: { denom: "uakt", amount: "500000" },
+        sources: [1]
+      }
+    };
+
+    // 5) Send tx to create deployment
+    const createRes = await chainSdk.akash.deployment.v1beta4.createDeployment(deploymentMsg)
+
+
+
+    // 6) Send manifest to a provider afterwards (choose a provider URL)
+    // const manifest = sdl.manifest();
+    // await providerSdk.sendManifest({ dseq, manifest, ...auth });
+
+    return createRes;
+  };
+
+  async getBidsForDeployment(dseqInput) {
+    const mnemonic = await getMnemonic();
+    const wallet = await DirectSecp256k1HdWallet.fromMnemonic(mnemonic, { prefix: "akash" });
+    const [{ address }] = await wallet.getAccounts();
+
+    const signer = createStargateClient({
+      baseUrl: this.rpc,
+      signerMnemonic: mnemonic,
+    });
+
+    const chainSdk = createChainNodeSDK({
+      query: { baseUrl: this.grpc },
+      tx: { signer },
+    });
+
+    const dseq = Long.fromString(String(dseqInput), true);
+    const providersResp = await fetch("https://console-api.akash.network/v1/providers");
+    
+    const providersJson = await providersResp.json();
+    const providers = Array.isArray(providersJson) ? providersJson : (providersJson?.providers ?? []);
+    console.log(providers);
+    
+  
+
+    const page = await chainSdk.akash.market.v1beta5.getBids({
+      filters: { owner: address, dseq }, // optionally add: state: "open"
+      pagination: { limit: 100 },
+    });
+    const bids = page?.bids ?? [];
+
+    
+
+    const latestBlockResp = await chainSdk.cosmos.base.tendermint.v1beta1.getLatestBlock();
+    const latestHeight = Number(latestBlockResp?.block?.header?.height ?? 0);
+
+    const detailedBids = await Promise.all(
+      bids.map(async (b) => {
+        const providerOwner = b?.bid.id.provider;
+        console.log(b.bid);
         
         
-        if (userBalance < dataPrice) {
-            console.log(chalk.red(`Account Balance: $${userBalance}`));
-            console.log(chalk.red("Please deposit credits by visiting https://ongrid.run/profile/billing or by using the CLI command grid stripe."));
-            process.exit(1);
-        }
-        const akashYaml = yaml.dump(config, { indent: 2 });
-        console.log(akashYaml);
+        const provider = providers.find((p) => p.owner === providerOwner);
+        console.log(provider);
         
-        const spinner = createSpinner('Deploying your service...').start();
+        
+        const dseqNum = Number(dseq.toString());
+        
+        const metrics = calculateDeploymentMetrics(dseqNum, latestHeight, b.bid.price.amount, b.escrowAccount.state.funds[0]);
+        const attrs = provider?.attributes ?? [];
+        const attrsMap = Object.fromEntries(attrs.map(a => [a.key, a.value]));
+        
+        
+        return {
+          providerName: provider?.name,
+          providerHostUri: provider?.hostUri,
+          providerIpRegion: provider?.ipRegion,
+          providerIpRegionCode: provider?.ipRegionCode,
+          providerIpCountry: provider?.ipCountry,
+          providerIpCountryCode: provider?.ipCountryCode,
+          providerIpLat: provider?.ipLat,
+          providerIpLon: provider?.ipLon,
+          providerUptime1d: provider?.uptime1d,
+          providerUptime7d: provider?.uptime7d,
+          providerUptime30d: provider?.uptime30d,
+          providerIsOnline: provider?.isOnline,
+          providerIsAudited: provider?.isAudited,
+          providerOwner: provider?.owner,
+          bidId: b?.bid?.bidId,
+          bid: b,
+          bidPriceMonthly: metrics,
+          pricePerBlock: metrics.pricePerBlockUakt,
+        };
+      }));
 
-        const fetchWithTimeout = (url, options = {}, timeout = 7000000) => {
-            return Promise.race([
-              fetch(url, options),
-              new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Request timed out')), timeout)
-              ),
-            ]);
-          };
-          
-          try {
-            const response = await fetchWithTimeout(`${BACKEND_URL}akash`, {
-              method: "POST",
-              headers: {
-                "Accept": "text/plain",
-                "Content-type": "text/plain",
-                Authorization: `Bearer ${jwt}`,
-              },
-              body: akashYaml,
-            }, 7000000);
-            const result = await response.json();
-            
-            if (result.status === 'error') {
-              const errorText = await response.json();
-              console.error(errorText);
-              spinner.error({text: "Error deploying, if problem persist: Support@ongrid.run"})
-              process.exit(1);
-            }
-            console.log(result);
-            spinner.success({text: "Sucess"});
-            process.exit(0);
-          } catch (error) {
-            spinner.error({text: "Error fetching,check if deployment succesfull by using grid deployment list. if problem persist: Support@ongrid.run"})
-            process.exit(1)
-          }
-          
 
-    } catch (error) {
-        console.error("Error details:", error.message);
-        throw error;
-    }
+    // detailedBids.sort((a, b) => {
+    //   if (a.providerIsAudited && !b.providerIsAudited) return -1;
+    //   if (!a.providerIsAudited && b.providerIsAudited) return 1;
+    //   if (a.pricePerBlock < b.pricePerBlock) return -1;
+    //   if (a.pricePerBlock > b.pricePerBlock) return 1;
+    //   return b.providerUptime30d - a.providerUptime30d;
+    // });
+
+    return { bids: detailedBids, pagination: { total: detailedBids.length } };
+  }
 }
+
+export default deployManager;

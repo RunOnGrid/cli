@@ -1,4 +1,4 @@
-import { getToken } from "../../../utils/keyChain.js";
+import { getMnemonic } from "../../../utils/keyChain.js";
 import path from "path";
 import dotenv from "dotenv";
 import chalk from "chalk";
@@ -12,7 +12,7 @@ class AkashLogsService {
     constructor() {
         this.BACKEND_URL = process.env.BACKEND_URL_DEV || "https://backend.ongrid.run/";
         this.WS_URL =  "ws://localhost:8087";
-        this.jwt = getToken();
+        this.jwt = getMnemonic();
         this.deployments = new DeploymentManager();
     }
 
