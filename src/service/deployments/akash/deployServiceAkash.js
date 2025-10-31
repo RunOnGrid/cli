@@ -38,7 +38,7 @@ class deployManager {
       tx: { signer }
     });
 
-    const rawSDL = fs.readFileSync("/Users/benjaminaguirre/Documents/cli/redis.yaml", "utf8");
+    const rawSDL = fs.readFileSync("/Users/benjaminaguirre/Documents/cli/hello-world.yaml", "utf8");
     const sdl = SDL.fromString(rawSDL);
 
 
@@ -61,17 +61,18 @@ class deployManager {
     // 5) Send tx to create deployment
     await chainSdk.akash.deployment.v1beta4.createDeployment(deploymentMsg)
 
+    // Wait a moment for deployment to be confirmed on chain
+    // This ensures sequence numbers are properly updated
+    await new Promise((resolve) => setTimeout(resolve, 3000));
     
-    const bids = await this.getBidsForDeployment((dseq.low));
-    console.log(bids);
+    // Wait for providers to post OPEN bids
+    const bids = await this.waitForOpenBids(dseq, 12, 5000);
     
-
-    const UAKT_PER_AKT = 1_000_000;
 
     const choices = bids.map((b) => {
-      const priceAKT = ((b.PricePerMonth ?? 0) * 0.7);
+    const priceAKT = ((b.PricePerMonth ?? 0) * 0.7);
       
-      const label = `${b.providerName ?? 'Unknown'} • ${b.providerIpCountry ?? ''} • ${b.providerIpRegion ?? ''} • $${priceAKT} month • Uptime30d ${b.providerUptime30d * 100}% `;
+      const label = `$${priceAKT} month  • ${b.providerName ?? 'Unknown'} • ${b.providerRegion ?? ''} • ${b.providerCountry ?? ''} • Uptime30d ${(b.providerUptime30d * 100).toFixed(3)}%`;
       return {
         name: label,
         value: {
@@ -86,8 +87,8 @@ class deployManager {
       choices,
     });
 
-    // await chainSdk.akash.market.v1beta5.createLease(selectedBid);
-
+    // Create lease from the provider's open bid (users don't create bids, providers do)
+    await chainSdk.akash.market.v1beta5.createLease({ bidId: answer.bidId });
     // 6) Send manifest to a provider afterwards (choose a provider URL)
     // const manifest = sdl.manifest();
     // await providerSdk.sendManifest({ dseq, manifest, ...auth });
@@ -116,16 +117,21 @@ class deployManager {
 
 
     const page = await chainSdk.akash.market.v1beta5.getBids({
-      filters: { owner: address, dseqInput }, // optionally add: state: "open"
+      filters: { owner: address, dseq: dseqInput, state: "open" },
       pagination: { limit: 100 },
     });
-    const bids = page?.bids ?? [];
 
+    const bids = page?.bids ?? [];
+    const filteredBids = bids.filter((b) => 
+      b.bid.state === 1 &&
+      b.bid.id.provider !== null
+    );
+    
     const latestBlockResp = await chainSdk.cosmos.base.tendermint.v1beta1.getLatestBlock();
     const latestHeight = Number(latestBlockResp?.block?.header?.height ?? 0);
 
     const detailedBids = await Promise.all(
-      bids.map(async (b) => {
+      filteredBids.map(async (b) => {
         const providerOwner = b?.bid.id.provider;
 
         const provider = providers.find((p) => p.owner === providerOwner);
@@ -153,16 +159,27 @@ class deployManager {
         };
       }));
 
+    const MIN_UPTIME = 0.98
+    const filteredByUptime = detailedBids.filter((b) => b.providerUptime30d >= MIN_UPTIME)
+    console.log(filteredByUptime);
+    
 
-    detailedBids.sort((a, b) => {
+    filteredByUptime.sort((a, b) => {
+      if((b.providerUptime30d ?? 0) > (a.providerUptime30d ?? 0)) return 1
+      if((b.providerUptime30d ?? 0) < (a.providerUptime30d ?? 0)) return -1
+      
+
       if (a.providerIsAudited && !b.providerIsAudited) return -1;
       if (!a.providerIsAudited && b.providerIsAudited) return 1;
+
       if (a.pricePerBlock < b.pricePerBlock) return -1;
       if (a.pricePerBlock > b.pricePerBlock) return 1;
-      return b.providerUptime30d - a.providerUptime30d;
+      return 0;
     });
 
-    const projected = detailedBids.map((b) => {
+    const UAKT_PER_AKT = 1_000_000;
+
+    const projected = filteredByUptime.map((b) => {
       const pricePerMonthUAKT = (b.pricePerBlock ?? 0) * BLOCKS_PER_MONTH;
       const pricePerMonthAKT = pricePerMonthUAKT / UAKT_PER_AKT;
     
@@ -172,12 +189,24 @@ class deployManager {
         providerCountry: b.providerIpCountry,
         providerUptime30d: b.providerUptime30d,
         providerIsAudited: b.providerIsAudited,
-        PricePerMonth: pricePerMonthAKT,      // en AKT// opcional, en uakt
+        PricePerMonth: pricePerMonthAKT,
+        bidId: b.bidId
       };
     });
 
     return projected;
   }
+
+  async waitForOpenBids(dseq, maxAttempts = 12, delayMs = 5000) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const bids = await this.getBidsForDeployment(dseq);
+      if (Array.isArray(bids) && bids.length > 0) return bids;
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+    return [];
+  }
 }
 
 export default deployManager;
+
+

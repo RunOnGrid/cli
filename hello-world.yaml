@@ -1,0 +1,105 @@
+---
+# Akash SDL (Stack Definition Language) Configuration
+# This file defines how your application will be deployed on Akash Network
+
+version: "2.0"  # SDL version - always use "2.0" for current deployments
+
+# SERVICES: Define your application containers
+services:
+  web:  # Service name - you can have multiple services (web, api, db, etc.)
+    
+    # Docker image to deploy
+    # This can be any public Docker image from Docker Hub, GitHub Container Registry, etc.
+    image: gridcloud/hello-app:1.0
+    
+    # ENVIRONMENT VARIABLES: Configure your application
+    # These help identify and configure your deployment
+    env:
+      - APP_NAME=HelloWorld-Demo      # Descriptive name for logs and monitoring
+      - VERSION=1.0                   # Version for tracking deployments
+      - ENVIRONMENT=testnet           # Environment identifier (testnet/mainnet)
+    
+    # NETWORKING: How your service is exposed to the internet
+    expose:
+      - port: 8080        # Port your app listens on INSIDE the container
+        as: 80           # Port exposed to the internet (HTTP = 80, HTTPS = 443)
+        to:
+          - global: true  # Make this service accessible from the internet
+                         # Set to false for internal-only services
+
+# PROFILES: Define resource requirements and provider constraints
+profiles:
+  
+  # COMPUTE PROFILE: Hardware resources your application needs
+  compute:
+    web:  # Must match service name above
+      resources:
+        cpu:
+          units: 0.1     # CPU cores (0.1 = 10% of 1 core)
+                        # Minimum: 0.1, typical: 0.5-2.0, maximum depends on provider
+        memory:
+          size: 128Mi    # RAM memory (Mi = Mebibytes)
+                        # Typical: 128Mi-1Gi, adjust based on your app needs
+        storage:
+          size: 512Mi    # Disk storage for temporary files
+                        # This is ephemeral storage, not persistent
+  
+  # PLACEMENT PROFILE: Where and how much you're willing to pay
+  placement:
+    dcloud:  # Placement name - can be any name you choose
+      
+      # PROVIDER REQUIREMENTS: Only providers with these attributes can bid
+      # Commented out for testnet to allow more providers
+      # attributes:
+      #   host: akash     # Only Akash-certified providers
+      
+      # SECURITY: Only providers signed by these auditors can bid
+      # Commented out for testnet - restrictive and many providers aren't signed
+      # For production/mainnet, uncomment this for security
+      # signedBy:
+      #   anyOf:
+      #     - "akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63"  # Akash official auditor
+      #     - "akash18qa2a2ltfyvkyj0ggj3hkvuj6twzyumuaru9s4"   # Community auditor
+      
+      # PRICING: Maximum you're willing to pay per block (~6 seconds)
+      pricing:
+        web:  # Must match service name
+          denom: uakt   # Currency: uakt (micro AKT tokens)
+          amount: 100000  # Max price per block in uakt (for mainnet)
+                       # For brief test: ~10 min = 100 blocks = 10 AKT
+                       # IMPORTANT: Close deployment immediately after testing!
+                       # Daily cost would be ≈ 1,440 AKT/day if left running
+
+# DEPLOYMENT: Connect services to profiles
+deployment:
+  web:      # Service name
+    dcloud: # Placement profile name (must match above)
+      profile: web  # Compute profile name (must match above)
+      count: 1      # Number of replicas (instances) to run
+                   # Start with 1 for testing, increase for production
+                   # Higher count = better availability + load distribution
+
+# COST ESTIMATION (with count: 1):
+# CPU: 0.1 cores × 1 replica = 0.1 total cores
+# Memory: 128Mi × 1 replica = 128Mi total memory  
+# Daily cost: ~10,000 uakt × 14,400 blocks × 1 replica = ~144 AKT/day
+# (Actual cost depends on provider bids - usually much lower)
+
+# SCALING TIPS:
+# - Increase 'count' for horizontal scaling (more instances)
+# - Increase 'cpu.units' or 'memory.size' for vertical scaling (more power per instance)
+# - Increase 'pricing.amount' if you're not getting bids (providers want more payment)
+
+# COMMON MODIFICATIONS:
+# 1. Change image: Update the 'image' field to your Docker image
+# 2. Change ports: Update 'port' (internal) and 'as' (external) 
+# 3. Environment variables: Already included - modify the 'env:' section
+# 4. Add persistent storage: Add 'params.storage' for volumes
+# 5. Multiple services: Add more services (database, api, etc.)
+
+# ENVIRONMENT VARIABLES EXAMPLES:
+# env:
+#   - DATABASE_URL=postgresql://user:pass@host:5432/db
+#   - API_KEY=your-secret-key
+#   - DEBUG=true
+#   - PORT=8080

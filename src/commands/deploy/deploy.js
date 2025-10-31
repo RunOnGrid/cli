@@ -19,4 +19,6 @@ const redisSubcommand = new Command("redis")
       }
   })
 
+
+
 deployCommand.addCommand(redisSubcommand);

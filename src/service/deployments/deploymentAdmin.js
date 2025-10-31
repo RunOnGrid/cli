@@ -38,7 +38,7 @@ class DeploymentManager {
       });
 
       // Query deployments
-      const dseq = Long.fromString(String("23958325"), true);
+      const dseq = Long.fromString(String("23981433"), true);
       const result = await chainSdk.akash.deployment.v1beta4.getDeployment({
         id: { owner: address, dseq },
       });
@@ -68,7 +68,7 @@ class DeploymentManager {
         },
       });
 
-      const dseq = Long.fromString(String("23958325"), true);
+      const dseq = Long.fromString(String("23981433"), true);
       const result = await chainSdk.akash.deployment.v1beta4.getDeployment({
         id: { owner: address, dseq },
       });
