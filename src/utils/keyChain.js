@@ -14,15 +14,15 @@ export async function deletePassword(account) {
     return await keytar.deletePassword(SERVICE, account);
 }
 
-// Funciones específicas para el token de autenticación (manteniendo compatibilidad)
-export async function saveToken(token) {
-    await savePassword("wallet", token);
+
+export async function saveTarget(target,token) {
+    await savePassword(target, token);
 }
 
-export async function getMnemonic() {
-    return await getPassword("wallet");
+export async function getTarget(target) {
+    return await getPassword(target);
 }
 
-export async function deleteToken() {
-    return await deletePassword("wallet");
+export async function deleteTarget(target) {
+    return await deletePassword(target);
 }

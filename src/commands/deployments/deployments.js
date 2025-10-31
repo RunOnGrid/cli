@@ -12,13 +12,15 @@ export const deploymentsCommand = new Command("deployment")
 const deploymentsLsCommand = new Command("list")
     .description("Get deployments")
     .action(async () => {
-        const result = await manager.getDeployments();
-        const list = result?.deployments ?? [];
-        if (list.length === 0) {
-            console.log("No deployments found.");
-            return;
-        }
-        console.dir({ deployments: list, pagination: result.pagination }, { depth: null });
+        const result = await manager.getDeploymentByUrl();
+        console.log(result);
+        
+        // const list = result?.deployments ?? [];
+        // if (list.length === 0) {
+        //     console.log("No deployments found.");
+        //     return;
+        // }
+        // console.dir({ deployments: list, pagination: result.pagination }, { depth: null });
     });
 
 

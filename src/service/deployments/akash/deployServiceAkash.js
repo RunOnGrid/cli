@@ -1,4 +1,4 @@
-import { getMnemonic } from "../../../utils/keyChain.js";
+import { getTarget } from "../../../utils/keyChain.js";
 import path from 'path';
 import { select } from '@inquirer/prompts';
 import dotenv from "dotenv";
@@ -7,13 +7,12 @@ import { createChainNodeSDK, createStargateClient, SDL } from "@akashnetwork/cha
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import fs from "fs"
 import { calculateDeploymentMetrics } from "../../../helpers/akashHelper.js";
-
+import DeploymentManager from "../deploymentAdmin.js"
 
 const SECONDS_PER_BLOCK = 6.098; // tune if chain varies
 const DAYS_PER_MONTH = 30;   // or 30.44 for average month
 const BLOCKS_PER_MONTH = Math.round((DAYS_PER_MONTH * 24 * 3600) / SECONDS_PER_BLOCK);
-
-
+const deploymentService = new DeploymentManager();
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
@@ -24,7 +23,7 @@ class deployManager {
   }
   async deployRedis() {
 
-    const mnemonic = await getMnemonic();
+    const mnemonic = await getTarget("mnemonic");
     const wallet = await DirectSecp256k1HdWallet.fromMnemonic(mnemonic, { prefix: "akash" });
     const [{ address }] = await wallet.getAccounts();
 
@@ -45,6 +44,7 @@ class deployManager {
     const groups = sdl.groups();
     const manifestHash = await sdl.manifestVersion();
 
+
     const latestBlock = await chainSdk.cosmos.base.tendermint.v1beta1.getLatestBlock();
     const dseq = Long.fromString(String(latestBlock.block?.header?.height ?? Date.now()), true);
 
@@ -64,14 +64,14 @@ class deployManager {
     // Wait a moment for deployment to be confirmed on chain
     // This ensures sequence numbers are properly updated
     await new Promise((resolve) => setTimeout(resolve, 3000));
-    
+
     // Wait for providers to post OPEN bids
     const bids = await this.waitForOpenBids(dseq, 12, 5000);
-    
+
 
     const choices = bids.map((b) => {
-    const priceAKT = ((b.PricePerMonth ?? 0) * 0.7);
-      
+      const priceAKT = ((b.PricePerMonth ?? 0) * 0.7);
+
       const label = `$${priceAKT} month  • ${b.providerName ?? 'Unknown'} • ${b.providerRegion ?? ''} • ${b.providerCountry ?? ''} • Uptime30d ${(b.providerUptime30d * 100).toFixed(3)}%`;
       return {
         name: label,
@@ -89,14 +89,42 @@ class deployManager {
 
     // Create lease from the provider's open bid (users don't create bids, providers do)
     await chainSdk.akash.market.v1beta5.createLease({ bidId: answer.bidId });
-    // 6) Send manifest to a provider afterwards (choose a provider URL)
-    // const manifest = sdl.manifest();
-    // await providerSdk.sendManifest({ dseq, manifest, ...auth });
+
+    // const lease = await deploymentService.getDeploymentByUrl(answer.bidId, answer.providerName)
+
+    await this.sendManifest(sdl, answer.providerName, dseq);
+    return
   };
+
+  async sendManifest(sdl, hostUri, dseq) {
+    try {
+      const jwt = await getTarget("jwt");
+      const manifest = await sdl.manifestSortedJSON();
+      console.log(manifest);
+      
+      const response = await fetch(`https://${hostUri}:8443/deployment/${dseq}/manifest`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${jwt}`,
+          'Content-Type': 'application/json'
+        },
+        body: manifest,
+        signal: AbortSignal.timeout(60000)
+      });
+      
+      
+      return await response.json();
+    }
+    catch (error) {
+      console.error("Error sending manifest");
+    }
+  }
+
+
 
   async getBidsForDeployment(dseqInput) {
 
-    const mnemonic = await getMnemonic();
+    const mnemonic = await getTarget("mnemonic");
     const wallet = await DirectSecp256k1HdWallet.fromMnemonic(mnemonic, { prefix: "akash" });
     const [{ address }] = await wallet.getAccounts();
 
@@ -122,11 +150,11 @@ class deployManager {
     });
 
     const bids = page?.bids ?? [];
-    const filteredBids = bids.filter((b) => 
+    const filteredBids = bids.filter((b) =>
       b.bid.state === 1 &&
       b.bid.id.provider !== null
     );
-    
+
     const latestBlockResp = await chainSdk.cosmos.base.tendermint.v1beta1.getLatestBlock();
     const latestHeight = Number(latestBlockResp?.block?.header?.height ?? 0);
 
@@ -162,12 +190,12 @@ class deployManager {
     const MIN_UPTIME = 0.98
     const filteredByUptime = detailedBids.filter((b) => b.providerUptime30d >= MIN_UPTIME)
     console.log(filteredByUptime);
-    
+
 
     filteredByUptime.sort((a, b) => {
-      if((b.providerUptime30d ?? 0) > (a.providerUptime30d ?? 0)) return 1
-      if((b.providerUptime30d ?? 0) < (a.providerUptime30d ?? 0)) return -1
-      
+      if ((b.providerUptime30d ?? 0) > (a.providerUptime30d ?? 0)) return 1
+      if ((b.providerUptime30d ?? 0) < (a.providerUptime30d ?? 0)) return -1
+
 
       if (a.providerIsAudited && !b.providerIsAudited) return -1;
       if (!a.providerIsAudited && b.providerIsAudited) return 1;
@@ -182,7 +210,7 @@ class deployManager {
     const projected = filteredByUptime.map((b) => {
       const pricePerMonthUAKT = (b.pricePerBlock ?? 0) * BLOCKS_PER_MONTH;
       const pricePerMonthAKT = pricePerMonthUAKT / UAKT_PER_AKT;
-    
+
       return {
         providerName: b.providerName,
         providerRegion: b.providerIpRegion,

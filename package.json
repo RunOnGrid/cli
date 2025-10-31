@@ -34,7 +34,7 @@
     "commander": "^13.1.0",
     "dotenv": "^16.4.7",
     "gradient-string": "^3.0.0",
-    "@akashnetwork/chain-sdk": "1.0.0-alpha.15",
+    "@akashnetwork/chain-sdk": "1.0.0-alpha.17",
     "bip39": "^3.1.0",
     "js-yaml": "^4.1.0",
     "keytar": "^7.9.0",
