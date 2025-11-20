@@ -1,0 +1,100 @@
+version: "2.0"
+services:
+  postgres:
+    image: postgres:15
+    expose:
+      - port: 5432
+        to:
+          - global: false
+          - service: pgbouncer
+    env:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=let-me-in
+      - POSTGRES_DB=mydb
+      - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256 --auth-local=scram-sha-256
+  
+      - PGDATA=/var/lib/postgresql/data/pgdata
+
+
+    params:
+      storage:
+        data:
+          mount: /var/lib/postgresql/data
+          readOnly: false
+
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    expose:
+      - port: 6432
+        to:
+          # 🔥 TLS del provider → certificado válido automático
+          - global: true
+    env:
+      - DB_USER=admin
+      - DB_PASSWORD=let-me-in
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=mydb
+
+      - POOL_MODE=transaction
+      - MAX_CLIENT_CONN=5000
+      - DEFAULT_POOL_SIZE=50
+      - LISTEN_PORT=6432
+
+      # --- SCRAM CONFIG ---
+      - AUTH_TYPE=scram-sha-256
+
+      # --- TLS (PlanetScale Style) ---
+      # Esto hace que PgBouncer NEGOCIE TLS sin necesidad de cert files
+      - LISTEN_SSL=1
+
+      # No TLS hacia Postgres (solo interno)
+      - SERVER_TLS_SSLMODE=disable
+
+profiles:
+  compute:
+    postgres:
+      resources:
+        cpu:
+          units: 1
+        memory:
+          size: 1Gi
+        storage:
+          - size: 1Gi
+          - name: data
+            size: 1Gi
+            attributes:
+              persistent: true
+              class: beta3
+    pgbouncer:
+      resources:
+        cpu:
+          units: 0.1
+        memory:
+          size: 512Mi
+        storage:
+          - size: 1Gi
+  placement:
+    akash:
+      pricing:
+        postgres:
+          denom: uakt
+          amount: 100000
+        pgbouncer:
+          denom: uakt
+          amount: 100000
+      signedBy:
+        anyOf:
+          - akash1365yvmc4s7awdyj3n2sav7xfx76adc6dnmlx63
+      attributes:
+        host: akash
+
+deployment:
+  postgres:
+    akash:
+      profile: postgres
+      count: 1
+  pgbouncer:
+    akash:
+      profile: pgbouncer
+      count: 1

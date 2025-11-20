@@ -10,9 +10,10 @@ export const deployCommand = new Command("deploy")
 
 const redisSubcommand = new Command("redis")
   .description("Deploy a redis instance")
-  .action(async (config) => {
+  .option('-y, --yes', "Skip provider selection and choose the first one automatically")
+  .action(async (options) => {
       try {
-        await manager.deployRedis()
+        await manager.deployRedis(options.yes)
       } catch (error) {
         console.error(error);
         process.exit(1)

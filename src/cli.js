@@ -3,6 +3,7 @@ import { deploymentsCommand } from "./commands/deployments/deployments.js";
 import { login } from "./commands/login/login.js";
 import { deployCommand } from "./commands/deploy/deploy.js";
 import { jwt } from "./commands/jwt/jwt.js";
+import { shellCommand } from "./commands/shell/shell.js";
 // import { logout } from "./commands/logout/logout.js";
 // import {logs} from "./commands/logs/logs.js"
 
@@ -48,4 +49,5 @@ program.addCommand(login);
 // program.addCommand(logout);
 program.addCommand(deployCommand);
 program.addCommand(jwt);
+program.addCommand(shellCommand);
 program.parse(process.argv);

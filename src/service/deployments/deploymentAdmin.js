@@ -79,31 +79,6 @@ class DeploymentManager {
     }
   }
 
-  async deleteDeployment(dseq) {
-    try {
-
-      const response = await fetch(`${this.backendUrl}deployments/${id}`, {
-        method: "DELETE",
-        headers: {
-          "Accept": "*/*",
-          Authorization: `Bearer ${jwt}`,
-        },
-      });
-
-      const data = await response.json();
-
-      if (data == 1) {
-        console.log(chalk.green("✅ Deployment successfully deleted"));
-        return
-      } else {
-        console.error(chalk.red("❌ Error deleting deployment. If the problem persists, contact support@ongrid.run"));
-        process.exit(1);
-      }
-    } catch (error) {
-      console.error("❌ Error deleting deployment. If the error persists, contact support@ongrid.run");
-      process.exit(1);
-    }
-  }
   async deleteAllFailedDeployments() {
     try {
       const data = await this.getDeployments(); // o como obtengas los deployments
@@ -158,16 +133,19 @@ class DeploymentManager {
         }
       }
       
-      const url = `${providerUrl}/lease/${bidId.dseq}/${bidId.gseq}/${bidId.oseq}/status`;
-      console.log(`Fetching lease status from: ${url}`);
+      const url = `https://${providerUrl}/lease/${bidId.dseq}/${bidId.gseq}/${bidId.oseq}/status`;
+      console.log(url);
       
-      const leaseDetails = await fetch(url, {
+      console.log(`Fetching lease status from: ${url}`);
+
+      
+      const leaseDetails = await fetch(providerUrl, {
         headers: {
           Authorization: `Bearer ${jwt}`
         },
       });
-      
-      return leaseDetails;
+     
+      return await leaseDetails.json();
     } catch (error) {
       console.error("❌ Error fetching deployment. If the error persists, contact support@ongrid.run");
       console.error(error.message);

@@ -19,9 +19,9 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 class deployManager {
   constructor() {
     this.rpc = "https://rpc.akashnet.net:443"
-    this.grpc = "https://akash-grpc.publicnode.com:443"
+    this.grpc = "https://akash-grpc.publicnode.com:43"
   }
-  async deployRedis() {
+  async deployRedis(flag) {
 
     const mnemonic = await getTarget("mnemonic");
     const wallet = await DirectSecp256k1HdWallet.fromMnemonic(mnemonic, { prefix: "akash" });
@@ -37,7 +37,7 @@ class deployManager {
       tx: { signer }
     });
 
-    const rawSDL = fs.readFileSync("/Users/benjaminaguirre/Documents/cli/hello-world.yaml", "utf8");
+    const rawSDL = fs.readFileSync("/Users/benjaminaguirre/Documents/cli/redis.yaml", "utf8");
     const sdl = SDL.fromString(rawSDL);
 
 
@@ -82,25 +82,32 @@ class deployManager {
       };
     });
 
-    const answer = await select({
-      message: 'Select a provider',
-      choices,
-    });
+    let answer;
+    if (flag) {
+      answer = choices[0].value;
+      console.log(`Auto-selecting first provider: ${answer.providerName ?? 'Unknown'}`);
+    } else {
+      answer = await select({
+        message: 'Select a provider',
+        choices,
+      });
+    }
 
-    // Create lease from the provider's open bid (users don't create bids, providers do)
     await chainSdk.akash.market.v1beta5.createLease({ bidId: answer.bidId });
 
-    // const lease = await deploymentService.getDeploymentByUrl(answer.bidId, answer.providerName)
 
     await this.sendManifest(sdl, answer.providerName, dseq);
-    return
+    const leaseData = await deploymentService.getDeploymentByUrl(answer.bidId, answer.providerName)
+
+    console.log(leaseData);
+    
+    return;
   };
 
   async sendManifest(sdl, hostUri, dseq) {
     try {
       const jwt = await getTarget("jwt");
       const manifest = await sdl.manifestSortedJSON();
-      console.log(manifest);
       
       const response = await fetch(`https://${hostUri}:8443/deployment/${dseq}/manifest`, {
         method: 'PUT',
@@ -112,6 +119,9 @@ class deployManager {
         signal: AbortSignal.timeout(60000)
       });
       
+      if (response.status !== 200) {
+          throw new Error("Error sending manifest");
+      }
       
       return await response.json();
     }
@@ -189,7 +199,6 @@ class deployManager {
 
     const MIN_UPTIME = 0.98
     const filteredByUptime = detailedBids.filter((b) => b.providerUptime30d >= MIN_UPTIME)
-    console.log(filteredByUptime);
 
 
     filteredByUptime.sort((a, b) => {
@@ -204,6 +213,8 @@ class deployManager {
       if (a.pricePerBlock > b.pricePerBlock) return 1;
       return 0;
     });
+
+
 
     const UAKT_PER_AKT = 1_000_000;
 
