@@ -1,5 +1,5 @@
 import WebSocket from "ws";
-import readline from "readline";
+import { execSync } from "child_process";
 
 // Códigos de canal según el protocolo de Akash
 const SHELL_CHANNELS = {
@@ -11,7 +11,7 @@ const SHELL_CHANNELS = {
   TERMINAL_RESIZE: 105 // LeaseShellCodeTerminalResize
 };
 
-export class WebSocketServer {
+export class WebSocketClient {
   constructor() {
     const wss = new WebSocket.Server({ noServer: true });
     this.wss = wss;
@@ -78,7 +78,6 @@ export class WebSocketServer {
       let resolved = false;
       let connectionTimeout = null;
       let stdinHandler = null;
-      let wasRawMode = false;
       let outputBuffer = '';
 
       const cleanup = () => {
@@ -87,11 +86,10 @@ export class WebSocketServer {
           stdinHandler = null;
         }
 
+        // Siempre restaurar raw mode a false (ya que siempre lo activamos con tty=1)
         if (process.stdin.isTTY) {
           try {
-            if (!wasRawMode) {
-              process.stdin.setRawMode(false);
-            }
+            process.stdin.setRawMode(false);
           } catch (err) {
             // Ignorar errores
           }
@@ -112,11 +110,9 @@ export class WebSocketServer {
 
       providerWs.on("open", () => {
         connected = true;
-        console.log("Connected to provider\n");
 
+        // Siempre activar raw mode porque tty=1 requiere modo interactivo
         if (process.stdin.isTTY) {
-          wasRawMode = process.stdin.isRawMode || false;
-          
           try {
             process.stdin.setRawMode(true);
             process.stdin.setEncoding('utf8');
@@ -156,6 +152,39 @@ export class WebSocketServer {
           // Ctrl+D - EOF
           if (buffer.length === 1 && buffer[0] === 0x04) {
             this.sendStdinData(providerWs, Buffer.from([0x04]));
+            return;
+          }
+
+          // Detectar Ctrl+V (0x16) o Cmd+V en Mac (secuencia especial)
+          // En Linux/Windows: Ctrl+V = 0x16 (22)
+          // En Mac: Cmd+V puede venir como secuencia de escape
+          if (buffer.length === 1 && buffer[0] === 0x16) {
+            // Ctrl+V detectado - leer clipboard y enviar
+            try {
+              let clipboardText = '';
+              if (process.platform === 'darwin') {
+                // macOS
+                clipboardText = execSync('pbpaste', { encoding: 'utf8' });
+              } else if (process.platform === 'win32') {
+                // Windows
+                clipboardText = execSync('powershell -command Get-Clipboard', { encoding: 'utf8' });
+              } else {
+                // Linux
+                clipboardText = execSync('xclip -selection clipboard -o', { encoding: 'utf8' });
+              }
+              
+              // Enviar cada carácter del texto pegado
+              if (clipboardText) {
+                const pasteBuffer = Buffer.from(clipboardText, 'utf8');
+                for (let i = 0; i < pasteBuffer.length; i++) {
+                  this.sendStdinData(providerWs, Buffer.from([pasteBuffer[i]]));
+                }
+              }
+            } catch (err) {
+              // Si falla el paste, ignorar silenciosamente
+              // O mostrar un mensaje de error
+              console.error('\n⚠️  Could not paste from clipboard:', err.message);
+            }
             return;
           }
 

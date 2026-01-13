@@ -89,29 +89,95 @@ delete [deployment-id]                  Delete deploymeny by id.
 refund [deployment-id]                  Refund an akash deployment. For more information [documentation](https://documentation.ongrid.run/build-deploy/payments/akash)  
 ```
 ### deploy
-The `deploy` command is used to launch a new application deployment to the cloud provider of your choice using either public or private container images.
-```bash                            
-grid deploy [provider] [config-path]    Start a new deployment on Grid.  
-                                        For more information, see the [documentation](https://documentation.ongrid.run/build-deploy/grid-cli/commands/deploy). 
-```
-### provider
+The `deploy` command is used to launch database deployments on Akash.
+
 ```bash
-flux                                    Deploy your container image to Flux.             
-akash                                   Deploy your container image to Akash.
+grid deploy postgres                    Deploy PostgreSQL with optional integrations
 ```
-### App methods
-The `app` command is used to  manage container instances on flux.
-```bash                            
-grid app [method]   
-                                        For more information, see the [documentation](https://documentation.ongrid.run/build-deploy/grid-cli/commands/appMethods). 
-```
-### method
+
+#### Resource Tiers
 ```bash
-restart                            Restarts a specific instance.            
-pause                              Temporarily stops a specific instance without terminating it.
-start                              Starts a specific instance that is currently stopped.
-unpause                            Resumes a paused instance.
-gsoft                              Reinstalls your applications on all instances from your container repo.
+--starter                  0.5 CPU, 1GB RAM, 5GB storage (~$0.89/month)
+--standard                 1 CPU, 2GB RAM, 10GB storage (~$1.79/month)
+--pro                      2 CPU, 4GB RAM, 20GB storage (~$3.39/month)
+--production               2 CPU, 8GB RAM, 40GB storage (~$4.19/month)
+```
+
+#### PostgreSQL Options
+```bash
+--version <version>        PostgreSQL version 14, 15, 16, 17 (default: 16)
+--pgbouncer                Enable pgBouncer connection pooler
+--pgbouncer-port <port>    PgBouncer port (default: 6432)
+--s3-backup                Enable S3 backups
+--s3-access-key <key>      AWS Access Key ID
+--s3-secret-key <key>      AWS Secret Access Key
+--s3-bucket <bucket>       S3 bucket name
+--s3-region <region>       S3 region (default: us-east-2)
+--backup-schedule <cron>   Backup cron schedule (default: "0 5 * * *")
+-y, --yes                  Auto-select first provider
+```
+
+#### Examples
+```bash
+# Deploy with starter tier (interactive prompts)
+grid deploy postgres --starter
+
+# Deploy production tier with pgBouncer
+grid deploy postgres --production --pgbouncer
+
+# Deploy with S3 backups
+grid deploy postgres --standard --s3-backup \
+  --s3-access-key AKIAIOSFODNN7EXAMPLE \
+  --s3-secret-key wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY \
+  --s3-bucket my-db-backups
+```
+
+### logs
+Stream container logs from Akash deployments.
+```bash
+grid logs <dseq> [service] [providerUri]
+```
+
+#### Options
+```bash
+-g, --gseq <gseq>          Group sequence (default: 1)
+-o, --oseq <oseq>          Order sequence (default: 1)
+-t, --tail <lines>         Number of lines to show (default: 100)
+-f, --follow               Follow log output (default: true)
+--no-follow                Show logs and exit
+```
+
+#### Available Services
+```bash
+postgres                   PostgreSQL database logs
+pgbouncer                  PgBouncer connection pooler logs
+s3backup                   S3 backup service logs
+```
+
+### shell
+Connect to container shell or execute commands.
+```bash
+grid shell <dseq> <service> <providerUri>   Configure connection
+grid shell -c <command>                     Execute command
+```
+
+#### Options
+```bash
+-g, --gseq <gseq>          Group sequence (default: 1)
+-o, --oseq <oseq>          Order sequence (default: 1)
+-c, --command <command>    Command to execute
+```
+
+#### Examples
+```bash
+# Configure shell connection
+grid shell 12345 postgres provider.akash-palmito.org
+
+# Execute psql command
+grid shell -c "psql -U admin -d mydb"
+
+# Run SQL query
+grid shell -c "psql -U admin -d mydb -c 'SELECT * FROM users;'"
 ```
 
 

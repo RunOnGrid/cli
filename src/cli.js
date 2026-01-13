@@ -4,8 +4,8 @@ import { login } from "./commands/login/login.js";
 import { deployCommand } from "./commands/deploy/deploy.js";
 import { jwt } from "./commands/jwt/jwt.js";
 import { shellCommand } from "./commands/shell/shell.js";
+import { logs } from "./commands/logs/logs.js";
 // import { logout } from "./commands/logout/logout.js";
-// import {logs} from "./commands/logs/logs.js"
 
 const program = new Command();
 program.name("gridcli").description("CLI GRID").version("2.6.6");
@@ -34,20 +34,38 @@ Available Commands
       refund [deployment-id]       Refund an akash deployment.
 
 --deploy
-  Deploy a postgre or redis
-  grid [database] [config-path]
+  Deploy a database on grid
+  grid deploy [options]
 
---logs(Soon)
-  grid logs [id]
+--logs
+  Stream container logs from Akash deployments
+  grid logs <dseq> [service] [providerUri]
+    Options:
+      -g, --gseq <gseq>    Group sequence (default: 1)
+      -o, --oseq <oseq>    Order sequence (default: 1)
+      -t, --tail <lines>   Number of lines to show (default: 100)
+      -f, --follow         Follow log output (default: true)
+      --no-follow          Show logs and exit
+
+--shell
+  Connect to container shell or execute commands
+  grid shell <dseq> <service> <providerUri>   Configure connection
+  grid shell -c <command>                     Execute command
+
+--jwt
+  Manage JWT for provider communication (auto-generated when needed)
+  grid jwt                                    Generate new JWT
+  grid jwt -s, --status                       Check JWT status
+  grid jwt -r, --regenerate                   Force regenerate JWT
 `);
   });
 
-// Agregar comandos
-// program.addCommand(logs)
+// Add commands
 program.addCommand(deploymentsCommand)
 program.addCommand(login);
 // program.addCommand(logout);
 program.addCommand(deployCommand);
 program.addCommand(jwt);
 program.addCommand(shellCommand);
+program.addCommand(logs);
 program.parse(process.argv);

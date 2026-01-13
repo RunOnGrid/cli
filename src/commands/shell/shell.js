@@ -1,12 +1,12 @@
 import { Command } from "commander";
-import { WebSocketServer } from "../../service/Websockets/websocketsService.js";
+import { WebSocketClient } from "../../service/Websockets/websocketsService.js";
 import { getTarget, saveTarget } from "../../utils/keyChain.js";
 import chalk from "chalk";
 
 export const shellCommand = new Command("shell")
     .description("Connect to container shell or execute commands")
     .argument("[dseq]", "Deployment sequence (dseq) - required for connection setup")
-    .argument("[service]", "Service name (e.g., pgbouncer, redis) - required for connection setup")
+    .argument("[service]", "Service name (e.g., postgres, pgbouncer, s3backup) - required for connection setup")
     .argument("[providerName]", "Provider name or host (e.g., provider.akash-palmito.org) - required for connection setup")
     .option("-g, --gseq <gseq>", "Group sequence (default: 1)", "1")
     .option("-o, --oseq <oseq>", "Order sequence (default: 1)", "1")
@@ -50,7 +50,7 @@ export const shellCommand = new Command("shell")
                 }
 
                 const config = JSON.parse(savedConfig);
-                const wsServer = new WebSocketServer();
+                const wsServer = new WebSocketClient();
                 await wsServer.executeCommand(
                     config.providerName,
                     config.dseq,
