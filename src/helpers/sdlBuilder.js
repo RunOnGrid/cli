@@ -60,16 +60,16 @@ export function buildPostgresSDL(params) {
   // Build storage config
   const storageConfig = enablePersistence
     ? [
-        { size: "1Gi" },
-        {
-          name: "data",
-          size: `${storage}Gi`,
-          attributes: {
-            persistent: true,
-            class: persistenceClass,
-          },
+      { size: "1Gi" },
+      {
+        name: "data",
+        size: `${storage}Gi`,
+        attributes: {
+          persistent: true,
+          class: persistenceClass,
         },
-      ]
+      },
+    ]
     : [{ size: `${storage}Gi` }];
 
   // Profiles
@@ -211,18 +211,10 @@ export function buildPostgresSDL(params) {
  * Get S3 backup image version based on PostgreSQL version
  */
 function getS3BackupVersion(pgVersion) {
-  switch (pgVersion) {
-    case "17":
-      return "2.4";
-    case "16":
-      return "2.2";
-    case "15":
-      return "2.5";
-    case "14":
-      return "2.6";
-    default:
-      return "2.4";
+  if (pgVersion === "17") {
+    return "2.4";
   }
+  return "2.6";
 }
 
 export default { buildPostgresSDL };

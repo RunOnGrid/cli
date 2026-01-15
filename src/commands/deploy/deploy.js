@@ -14,7 +14,7 @@ const BLOCKS_PER_MONTH = Math.round((DAYS_PER_MONTH * 24 * 3600) / SECONDS_PER_B
 const UAKT_PER_AKT = 1_000_000;
 
 // Clean provider URI - extract just the hostname
-function cleanProviderUri(uri) {
+export function cleanProviderUri(uri) {
   if (!uri) return uri;
   let clean = uri;
   if (clean.startsWith("https://")) clean = clean.replace("https://", "");
@@ -255,7 +255,7 @@ const postgresSubcommand = new Command("postgres")
       const providerHost = cleanProviderUri(selectedBid.providerName);
       await sendManifest(sdl, providerHost, dseq);
 
-     
+
 
       if (enablePgBouncer) {
         console.log(chalk.gray(`  PgBouncer Port: ${options.pgbouncerPort}`));
@@ -277,7 +277,7 @@ const postgresSubcommand = new Command("postgres")
     }
   });
 
-async function waitForOpenBids(chainSdk, address, dseq, maxAttempts = 12, delayMs = 5000) {
+export async function waitForOpenBids(chainSdk, address, dseq, maxAttempts = 12, delayMs = 5000) {
   const providersResp = await fetch("https://console-api.akash.network/v1/providers");
   const providersJson = await providersResp.json();
   const providers = Array.isArray(providersJson) ? providersJson : (providersJson?.providers ?? []);
