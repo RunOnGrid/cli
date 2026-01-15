@@ -2,23 +2,17 @@
     <img src="https://imagedelivery.net/EXhaUxjEp-0lLrNJjhM2AA/d4e80dd3-61e5-4b44-2495-c2594875dc00/public" height="96" />
 </p>
 
-# Grid
+# Grid CLI
 
-Build. Connect. Deploy.
+Deploy databases on decentralized infrastructure.
 
 <p align="center">
   <a href="https://documentation.ongrid.run"><strong>Documentation</strong></a> ·
-  <a href="https://documentation.ongrid.run/build-deploy/grid-cli"><strong>CLI</strong></a>
+  <a href="https://documentation.ongrid.run/build-deploy/grid-cli"><strong>CLI Guide</strong></a>
 </p>
 <br/>
 
-## Grid
-
-Grid Platform provides the developer access to decentralized infrastructure to build, scale, and secure faster deployments.
-
-## How to install
-
-Otherwise
+## Installation
 
 ```bash
 npm i -g cli-grid
@@ -29,83 +23,70 @@ pnpm i -g cli-grid
 ```bash
 yarn global add cli-grid
 ```
-## Supported commands and options
 
-### Usage
-
-To display all supported commands and options -
+## Quick Start
 
 ```bash
-grid help
+# 1. Login with your Akash mnemonic
+grid login your twelve word mnemonic phrase here
+
+# 2. Generate JWT for provider communication
+grid jwt
+
+# 3. Create a PostgreSQL database
+grid create postgres --starter
+
+# 4. List your databases
+grid database ls
 ```
 
-### Available Commands
-
+## Commands
 
 ### login
-The `login` command is used to access your Grid account. This command will store your access token in your system keychain.
-```bash
-grid login [options]
-```                        
-### Options
-```bash
-github
-google
-```  
-### Logout
-The `logout` command is used to logout your Grid account. This command will delete your access token from your system keychain.
-```bash
-grid logout 
-```
-## stripe
-The `stripe` command launches a Stripe Checkout session to purchase credits for your Grid account.
-```bash                                 
-grid stripe
-```
 
-## git
-The `git` command is used to manage GitHub repositories for Grid deployments. It enables connecting your account to the Grid GitHub App and supports building container images via GitHub Actions.
-```bash                                 
-grid git [options]
-```
-
-### options
-```bash
-connect                                 Connect your GitHub account to the Grid GitHub App.
-repos                                   List available repositories linked to your account.
-build                                   Select a repository and build it into a runnable container image.
-```
-
-### deployment
-The `deployment` command is used to manage Grid deployments.
-```bash                                 
-grid deployment [options]
-```
-### options
-```bash
-list                                    List available deployments in your account.
-id [deployment-id]                      List deployment by id.
-delete [deployment-id]                  Delete deploymeny by id.
-refund [deployment-id]                  Refund an akash deployment. For more information [documentation](https://documentation.ongrid.run/build-deploy/payments/akash)  
-```
-### deploy
-The `deploy` command is used to launch database deployments on Akash.
+Store your Akash mnemonic securely in your system keychain.
 
 ```bash
-grid deploy postgres                    Deploy PostgreSQL with optional integrations
+grid login <mnemonic words...>
+```
+
+**Example:**
+```bash
+grid login word1 word2 word3 word4 word5 word6 word7 word8 word9 word10 word11 word12
+```
+
+### database
+
+Manage your databases.
+
+```bash
+grid database [id]              Get database details by ID
+grid database ls                List all databases
+grid database delete <id>       Delete database by ID
+grid database delete failed     Delete all failed databases
+grid database refund <id>       Refund and close database deployment
+grid database bids <dseq>       List bids for a database
+```
+
+### create postgres
+
+Create a PostgreSQL database on Akash.
+
+```bash
+grid create postgres [options]
 ```
 
 #### Resource Tiers
 ```bash
---starter                  0.5 CPU, 1GB RAM, 5GB storage (~$0.89/month)
---standard                 1 CPU, 2GB RAM, 10GB storage (~$1.79/month)
---pro                      2 CPU, 4GB RAM, 20GB storage (~$3.39/month)
---production               2 CPU, 8GB RAM, 40GB storage (~$4.19/month)
+--starter       0.5 CPU, 1GB RAM, 5GB storage (~$0.89/month)
+--standard      1 CPU, 2GB RAM, 10GB storage (~$1.79/month)
+--pro           2 CPU, 4GB RAM, 20GB storage (~$3.39/month)
+--production    2 CPU, 8GB RAM, 40GB storage (~$4.19/month)
 ```
 
 #### PostgreSQL Options
 ```bash
---version <version>        PostgreSQL version 14, 15, 16, 17 (default: 16)
+--version <version>        PostgreSQL version: 14, 15, 16, 17 (default: 16)
 --pgbouncer                Enable pgBouncer connection pooler
 --pgbouncer-port <port>    PgBouncer port (default: 6432)
 --s3-backup                Enable S3 backups
@@ -119,75 +100,86 @@ grid deploy postgres                    Deploy PostgreSQL with optional integrat
 
 #### Examples
 ```bash
-# Deploy with starter tier (interactive prompts)
-grid deploy postgres --starter
+# Create with starter tier (interactive prompts)
+grid create postgres --starter
 
-# Deploy production tier with pgBouncer
-grid deploy postgres --production --pgbouncer
+# Create production tier with pgBouncer
+grid create postgres --production --pgbouncer
 
-# Deploy with S3 backups
-grid deploy postgres --standard --s3-backup \
+# Create with S3 backups
+grid create postgres --standard --s3-backup \
   --s3-access-key AKIAIOSFODNN7EXAMPLE \
   --s3-secret-key wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY \
   --s3-bucket my-db-backups
 ```
 
 ### logs
-Stream container logs from Akash deployments.
+
+Stream container logs from your database deployments.
+
 ```bash
 grid logs <dseq> [service] [providerUri]
 ```
 
 #### Options
 ```bash
--g, --gseq <gseq>          Group sequence (default: 1)
--o, --oseq <oseq>          Order sequence (default: 1)
--t, --tail <lines>         Number of lines to show (default: 100)
--f, --follow               Follow log output (default: true)
---no-follow                Show logs and exit
+-g, --gseq <gseq>       Group sequence (default: 1)
+-o, --oseq <oseq>       Order sequence (default: 1)
+-t, --tail <lines>      Number of lines to show (default: 100)
+-f, --follow            Follow log output (default: true)
+--no-follow             Show logs and exit
 ```
 
 #### Available Services
 ```bash
-postgres                   PostgreSQL database logs
-pgbouncer                  PgBouncer connection pooler logs
-s3backup                   S3 backup service logs
+postgres      PostgreSQL database logs
+pgbouncer     PgBouncer connection pooler logs
+s3backup      S3 backup service logs
 ```
 
 ### shell
+
 Connect to container shell or execute commands.
+
 ```bash
-grid shell <dseq> <service> <providerUri>   Configure connection
-grid shell -c <command>                     Execute command
+grid shell <dseq>                           Connect to deployment
+grid shell                                  Reconnect with saved config
+grid shell -c <command>                     Execute single command
+grid shell <dseq> <password> --psql         Connect directly to PostgreSQL
 ```
 
 #### Options
 ```bash
--g, --gseq <gseq>          Group sequence (default: 1)
--o, --oseq <oseq>          Order sequence (default: 1)
--c, --command <command>    Command to execute
+--psql               Connect directly to PostgreSQL (requires psql client installed)
+-u, --user <user>    Database user (default: admin)
+-d, --database <db>  Database name (default: mydb)
 ```
 
 #### Examples
 ```bash
-# Configure shell connection
-grid shell 12345 postgres provider.akash-palmito.org
+# Connect directly to PostgreSQL database
+grid shell 12345 mypassword --psql
 
-# Execute psql command
-grid shell -c "psql -U admin -d mydb"
+# Connect with custom user/database
+grid shell 12345 mypassword --psql -u postgres -d production
 
-# Run SQL query
-grid shell -c "psql -U admin -d mydb -c 'SELECT * FROM users;'"
+# Execute command in container shell
+grid shell -c "ls -la"
 ```
 
+### jwt
 
+Manage JWT for secure provider communication. JWT is auto-generated when needed.
 
+```bash
+grid jwt                    Generate new JWT
+grid jwt -s, --status       Check JWT status
+grid jwt -r, --regenerate   Force regenerate JWT
+```
 
 ## Documentation
 
-For details on how to use Grid, check out our [documentation](https://documentation.ongrid.run).
-
-
+For more details, check out our [documentation](https://documentation.ongrid.run).
 
 ## Reference
 

@@ -13,8 +13,18 @@ const DAYS_PER_MONTH = 30;
 const BLOCKS_PER_MONTH = Math.round((DAYS_PER_MONTH * 24 * 3600) / SECONDS_PER_BLOCK);
 const UAKT_PER_AKT = 1_000_000;
 
-export const deployCommand = new Command("deploy")
-  .description("Deploy a database on grid");
+// Clean provider URI - extract just the hostname
+function cleanProviderUri(uri) {
+  if (!uri) return uri;
+  let clean = uri;
+  if (clean.startsWith("https://")) clean = clean.replace("https://", "");
+  if (clean.startsWith("http://")) clean = clean.replace("http://", "");
+  clean = clean.split(":")[0]; // Remove port
+  return clean;
+}
+
+export const deployCommand = new Command("create")
+  .description("Create a database on grid");
 
 // Resource tiers matching frontend
 const RESOURCE_TIERS = {
@@ -25,7 +35,7 @@ const RESOURCE_TIERS = {
 };
 
 const postgresSubcommand = new Command("postgres")
-  .description("Deploy a PostgreSQL database with optional pgbouncer and S3 backups")
+  .description("Create a PostgreSQL database with optional pgbouncer and S3 backups")
   .option("--starter", "Starter tier: 0.5 CPU, 1GB RAM, 5GB storage (~$0.89/month)")
   .option("--standard", "Standard tier: 1 CPU, 2GB RAM, 10GB storage (~$1.79/month)")
   .option("--pro", "Pro tier: 2 CPU, 4GB RAM, 20GB storage (~$3.39/month)")
@@ -242,24 +252,20 @@ const postgresSubcommand = new Command("postgres")
 
       // Send manifest
       console.log(chalk.gray("\nSending manifest to provider..."));
-      await sendManifest(sdl, selectedBid.providerName, dseq);
+      const providerHost = cleanProviderUri(selectedBid.providerName);
+      await sendManifest(sdl, providerHost, dseq);
 
-      console.log(chalk.green("\nDeployment successful!"));
-      console.log(chalk.cyan("\nConnection Details:"));
-      console.log(chalk.gray(`  DSEQ: ${dseq}`));
-      console.log(chalk.gray(`  Provider: ${selectedBid.providerName}`));
-      console.log(chalk.gray(`  Database: mydb`));
-      console.log(chalk.gray(`  User: admin`));
+     
 
       if (enablePgBouncer) {
         console.log(chalk.gray(`  PgBouncer Port: ${options.pgbouncerPort}`));
       }
 
       console.log(chalk.yellow("\nTo view logs:"));
-      console.log(chalk.gray(`  grid logs ${dseq} postgres ${selectedBid.providerName}`));
+      console.log(chalk.gray(`  grid logs ${dseq} postgres ${providerHost}`));
 
       console.log(chalk.yellow("\nTo connect via shell:"));
-      console.log(chalk.gray(`  grid shell ${dseq} postgres ${selectedBid.providerName}`));
+      console.log(chalk.gray(`  grid shell ${dseq} postgres ${providerHost}`));
       console.log(chalk.gray(`  grid shell -c "psql -U admin -d mydb"`));
 
     } catch (error) {
@@ -334,7 +340,7 @@ async function waitForOpenBids(chainSdk, address, dseq, maxAttempts = 12, delayM
   return [];
 }
 
-async function sendManifest(sdl, hostUri, dseq) {
+async function sendManifest(sdl, providerHost, dseq) {
   const jwt = await getTarget("jwt");
   if (!jwt) {
     throw new Error("No JWT found. Please run 'grid jwt' first.");
@@ -342,7 +348,7 @@ async function sendManifest(sdl, hostUri, dseq) {
 
   const manifest = await sdl.manifestSortedJSON();
 
-  const response = await fetch(`https://${hostUri}:8443/deployment/${dseq}/manifest`, {
+  const response = await fetch(`https://${providerHost}:8443/deployment/${dseq}/manifest`, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${jwt}`,
@@ -352,12 +358,12 @@ async function sendManifest(sdl, hostUri, dseq) {
     signal: AbortSignal.timeout(60000),
   });
 
-  if (response.status !== 200) {
+  if (!response.ok) {
     const body = await response.text();
     throw new Error(`Failed to send manifest: ${response.status} ${body}`);
   }
 
-  return await response.json();
+  return { success: true };
 }
 
 deployCommand.addCommand(postgresSubcommand);

@@ -68,14 +68,160 @@ class DeploymentManager {
         },
       });
 
-      const dseq = Long.fromString(String("23981433"), true);
+      const dseq = Long.fromString(String(id), true);
       const result = await chainSdk.akash.deployment.v1beta4.getDeployment({
         id: { owner: address, dseq },
       });
-      return result;
+
+      const leaseData = await this.getLeaseStatusByDseq(dseq);
+
+      const structureData = {
+        service: leaseData.services.postgres,
+        ports: [
+          {
+            port: leaseData.forwarded_ports.postgres[0].port,
+            externalPort: leaseData.forwarded_ports.postgres[0].externalPort
+          }
+        ]
+      };
+      console.log(structureData);
+
+
+
     } catch (error) {
       console.error("❌ Error fetching deployment. If the error persists, contact support@ongrid.run");
-      process.exit(1);
+      console.error(error.message);
+      return null;
+    }
+  }
+
+  async getProviderUriFromDseq(dseq) {
+    try {
+      const mnemonic = await getTarget("mnemonic");
+      if (!mnemonic) {
+        console.error("❌ Error: No mnemonic found. Please run 'grid login' first.");
+        return null;
+      }
+
+      const wallet = await DirectSecp256k1HdWallet.fromMnemonic(mnemonic, { prefix: "akash" });
+      const [{ address }] = await wallet.getAccounts();
+
+      const signer = createStargateClient({
+        baseUrl: 'https://rpc.akashnet.net:443',
+        signerMnemonic: mnemonic
+      });
+
+      const chainSdk = createChainNodeSDK({
+        query: {
+          baseUrl: "https://akash-grpc.publicnode.com/",
+        },
+        tx: {
+          signer,
+        },
+      });
+
+      const dseqLong = Long.fromString(String(dseq), true);
+
+      // Get leases for this deployment
+      const leases = await chainSdk.akash.market.v1beta5.getLeases({
+        filters: {
+          owner: address,
+          dseq: dseqLong
+        },
+        pagination: { limit: 100 }
+      });
+
+      if (!leases.leases || leases.leases.length === 0) {
+        console.error("❌ No leases found for this deployment");
+        return null;
+      }
+
+      // Get provider address from the first lease
+      const providerAddress = leases.leases[0].lease.id.provider;
+
+
+      const providersResp = await fetch("https://console-api.akash.network/v1/providers");
+      const providersJson = await providersResp.json();
+      const providers = Array.isArray(providersJson) ? providersJson : (providersJson?.providers ?? []);
+
+      const provider = providers.find((p) => p.owner === providerAddress);
+
+
+      if (!provider) {
+        console.error("❌ Could not find provider information");
+        return null;
+      }
+
+      const hostUri = provider.hostUri || provider.name;
+
+      if (!hostUri) {
+        console.error("❌ Could not find provider hostUri");
+        return null;
+      }
+
+      return hostUri;
+    } catch (error) {
+      console.error("❌ Error getting provider URI from dseq");
+      console.error(error.message);
+      return null;
+    }
+  }
+
+  async getLeaseStatusByDseq(dseq, gseq = 1, oseq = 1) {
+    try {
+      const jwt = await getTarget("jwt");
+      if (!jwt) {
+        console.error("❌ Error: No JWT found. Please run 'grid jwt' first to create a JWT token.");
+        return null;
+      }
+
+      // Get provider URI from dseq
+      const hostUri = await this.getProviderUriFromDseq(dseq);
+      if (!hostUri) {
+        return null;
+      }
+
+      // Construct provider URL from hostUri
+      let providerUrl;
+      if (hostUri.startsWith('http://') || hostUri.startsWith('https://')) {
+        providerUrl = hostUri;
+      } else if (hostUri.includes('provider.')) {
+        providerUrl = `https://${hostUri}:8443`;
+      } else {
+
+        const firstDot = hostUri.indexOf('.');
+        const secondDot = hostUri.indexOf('.', firstDot + 1);
+        if (secondDot === -1) {
+          providerUrl = `https://provider.${hostUri}:8443`;
+        } else {
+          providerUrl = `https://provider${hostUri.slice(secondDot)}:8443`;
+        }
+      }
+
+      // Construct the API endpoint
+      const apiUrl = `${providerUrl}/lease/${dseq}/${gseq}/${oseq}/status`;
+
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${jwt}`
+        }
+      });
+
+      if (!response.ok) {
+
+        if (response.status !== 404) {
+          console.error(`❌ Error: HTTP ${response.status} - ${response.statusText}`);
+        }
+        return null;
+      }
+
+      const leaseStatus = await response.json();
+      return leaseStatus;
+    } catch (error) {
+      console.error("❌ Error fetching lease status. If the error persists, contact support@ongrid.run");
+      console.error(error.message);
+      return null;
     }
   }
 
@@ -132,19 +278,18 @@ class DeploymentManager {
           providerUrl = `https://provider${hostUri.slice(secondDot)}:8443`;
         }
       }
-      
-      const url = `https://${providerUrl}/lease/${bidId.dseq}/${bidId.gseq}/${bidId.oseq}/status`;
-      console.log(url);
-      
-      console.log(`Fetching lease status from: ${url}`);
 
-      
+      const url = `https://${providerUrl}/lease/${bidId.dseq}/${bidId.gseq}/${bidId.oseq}/status`;
+
+
+
+
       const leaseDetails = await fetch(providerUrl, {
         headers: {
           Authorization: `Bearer ${jwt}`
         },
       });
-     
+
       return await leaseDetails.json();
     } catch (error) {
       console.error("❌ Error fetching deployment. If the error persists, contact support@ongrid.run");
@@ -156,24 +301,48 @@ class DeploymentManager {
 
   async refundAkash(id) {
     try {
-      const jwt = await getTarget("jwt");
-      const response = await fetch(`${this.backendUrl}akash/refund/${id}`, {
-        method: "POST",
-        headers: {
-          "Accept": "*/*",
-          Authorization: `Bearer ${jwt}`,
+
+      const mnemonic = await getTarget("mnemonic");
+      const wallet = await DirectSecp256k1HdWallet.fromMnemonic(mnemonic, { prefix: "akash" });
+      const [{ address }] = await wallet.getAccounts();
+
+
+      const signer = createStargateClient({
+        baseUrl: 'https://rpc.akashnet.net:443', // blockchain rpc endpoint
+        signerMnemonic: mnemonic
+      });
+
+      // endpoints can be found in https://github.com/akash-network/net
+      const chainSdk = createChainNodeSDK({
+        query: {
+          baseUrl: "https://akash-grpc.publicnode.com/", // blockchain gRPC endpoint url
+        },
+        tx: {
+          signer,
         },
       });
 
-      const data = await response.json();
+      // Query deployments
+      const dseq = Long.fromString(String(id), true);
+      
 
-      if (data.status === 'success') {
-        console.log(chalk.green(`✅ Refund completed successfully. Refund amount: ${data.refundAmount}`));
-        process.exit(0);
-      } else {
-        console.error(chalk.red("❌ Error: Please verify that the deployment has not already been refunded or failed."));
-        process.exit(1);
-      }
+      const closeDeployment = await chainSdk.akash.deployment.v1beta4.closeDeployment({
+        id: {
+          owner: address,
+          dseq: dseq
+        }
+      })  
+
+      console.log(closeDeployment);
+      
+
+      // if (data.status === 'success') {
+      //   console.log(chalk.green(`✅ Refund completed successfully. Refund amount: ${data.refundAmount}`));
+      //   process.exit(0);
+      // } else {
+      //   console.error(chalk.red("❌ Error: Please verify that the deployment has not already been refunded or failed."));
+      //   process.exit(1);
+      // }
     } catch (error) {
       console.error("❌ Error refunding deployment. If the error persists, contact support@ongrid.run");
       process.exit(1);

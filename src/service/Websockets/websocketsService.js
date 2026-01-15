@@ -1,24 +1,23 @@
 import WebSocket from "ws";
 import { execSync } from "child_process";
 
-// Códigos de canal según el protocolo de Akash
+// Shell channel codes from Akash protocol
 const SHELL_CHANNELS = {
-  STDIN: 104,   // LeaseShellCodeStdin
-  STDOUT: 100,  // LeaseShellCodeStdout
-  STDERR: 101,  // LeaseShellCodeStderr
-  RESULT: 102,  // LeaseShellCodeResult
-  FAILURE: 103, // LeaseShellCodeFailure
-  TERMINAL_RESIZE: 105 // LeaseShellCodeTerminalResize
+  STDIN: 104,
+  STDOUT: 100,
+  STDERR: 101,
+  RESULT: 102,
+  FAILURE: 103,
+  TERMINAL_RESIZE: 105
 };
 
 export class WebSocketClient {
   constructor() {
-    const wss = new WebSocket.Server({ noServer: true });
-    this.wss = wss;
+    this.ws = null;
   }
 
   /**
-   * Envía datos al provider con el byte de canal correcto
+   * Send data to provider with correct channel byte
    */
   sendStdinData(ws, data) {
     if (ws.readyState !== WebSocket.OPEN) return false;
@@ -32,7 +31,7 @@ export class WebSocketClient {
       buffer = Buffer.from(data);
     }
 
-    // Crear buffer con byte de canal + datos
+    // Create buffer with channel byte + data
     const channelBuffer = Buffer.allocUnsafe(1 + buffer.length);
     channelBuffer[0] = SHELL_CHANNELS.STDIN;
     buffer.copy(channelBuffer, 1);
@@ -41,44 +40,59 @@ export class WebSocketClient {
       ws.send(channelBuffer);
       return true;
     } catch (err) {
-      console.error("\nError sending stdin:", err.message);
       return false;
     }
   }
 
   /**
-   * Ejecuta un comando en el contenedor con soporte interactivo
+   * Send terminal resize event
    */
-  async executeCommand(
-    providerBaseUrl,
-    dseq,
-    gseq = "1",
-    oseq = "1",
-    service,
-    jwt,
-    command
-  ) {
+  sendResize(ws, cols, rows) {
+    if (ws.readyState !== WebSocket.OPEN) return;
+
+    const resizeData = JSON.stringify({ width: cols, height: rows });
+    const buffer = Buffer.from(resizeData, 'utf8');
+    const channelBuffer = Buffer.allocUnsafe(1 + buffer.length);
+    channelBuffer[0] = SHELL_CHANNELS.TERMINAL_RESIZE;
+    buffer.copy(channelBuffer, 1);
+
+    try {
+      ws.send(channelBuffer);
+    } catch (err) {
+      // Ignore resize errors
+    }
+  }
+
+  /**
+   * Start interactive shell session
+   */
+  async startInteractiveShell(providerBaseUrl, dseq, gseq, oseq, service, jwt) {
     return new Promise((resolve, reject) => {
-      // Construir parámetros del comando
-      const commandParts = command.trim().split(/\s+/);
-      const commandParams = commandParts
-        .map((c, i) => `&cmd${i}=${encodeURIComponent(c)}`)
-        .join("");
+      // Build WebSocket URL for interactive shell (exactly like frontend)
+      const cmd0 = encodeURIComponent("/bin/sh");
+      const wsUrl = `wss://${providerBaseUrl}:8443/lease/${dseq}/${gseq}/${oseq}/shell?stdin=1&tty=1&podIndex=0&cmd0=${cmd0}&service=${encodeURIComponent(service)}`;
 
-      const wsUrl = `wss://${providerBaseUrl}:8443/lease/${dseq}/${gseq}/${oseq}/shell?stdin=1&tty=1&podIndex=0${commandParams}&service=${encodeURIComponent(service)}`;
-
-      console.log(`Connecting to ${providerBaseUrl}...`);
-      console.log(`Executing: ${command}\n`);
+      console.log(`\x1b[90mConnecting to ${providerBaseUrl}...\x1b[0m`);
+      console.log(`\x1b[90mService: ${service}\x1b[0m`);
+      console.log(`\x1b[90mDSEQ: ${dseq}\x1b[0m\n`);
 
       const providerWs = new WebSocket(wsUrl, {
-        headers: { Authorization: `Bearer ${jwt}` },
+        headers: {
+          Authorization: `Bearer ${jwt}`,
+          'User-Agent': 'Grid-CLI/1.0'
+        },
+        rejectUnauthorized: false,
       });
+
+
+      providerWs.binaryType = "arraybuffer";
 
       let connected = false;
       let resolved = false;
       let connectionTimeout = null;
       let stdinHandler = null;
-      let outputBuffer = '';
+      let stdinEndHandler = null;
+      let resizeHandler = null;
 
       const cleanup = () => {
         if (stdinHandler) {
@@ -86,20 +100,25 @@ export class WebSocketClient {
           stdinHandler = null;
         }
 
-        // Siempre restaurar raw mode a false (ya que siempre lo activamos con tty=1)
+        if (stdinEndHandler) {
+          process.stdin.removeListener('end', stdinEndHandler);
+          stdinEndHandler = null;
+        }
+
+        if (resizeHandler) {
+          process.stdout.removeListener('resize', resizeHandler);
+          resizeHandler = null;
+        }
+
         if (process.stdin.isTTY) {
           try {
             process.stdin.setRawMode(false);
-          } catch (err) {
-            // Ignorar errores
-          }
+          } catch (err) { }
         }
 
         try {
           process.stdin.pause();
-        } catch (err) {
-          // Ignorar errores
-        }
+        } catch (err) { }
 
         if (connectionTimeout) clearTimeout(connectionTimeout);
 
@@ -108,17 +127,298 @@ export class WebSocketClient {
         }
       };
 
+
+      providerWs.on("message", (msg) => {
+        let data;
+
+        if (Buffer.isBuffer(msg)) {
+          data = msg;
+        } else if (msg instanceof ArrayBuffer) {
+          data = Buffer.from(msg);
+        } else {
+          data = Buffer.from(String(msg));
+        }
+
+        if (data.length === 0) return;
+
+        const channel = data[0];
+
+        if (channel === SHELL_CHANNELS.STDOUT || channel === SHELL_CHANNELS.STDERR) {
+          if (data.length > 1) {
+            process.stdout.write(data.subarray(1));
+          }
+        } else if (channel === SHELL_CHANNELS.RESULT) {
+          cleanup();
+          if (!resolved) {
+            resolved = true;
+            resolve();
+          }
+        } else if (channel === SHELL_CHANNELS.FAILURE) {
+          if (data.length > 1) {
+            process.stderr.write(data.subarray(1));
+          }
+          cleanup();
+          if (!resolved) {
+            resolved = true;
+            reject(new Error("Shell session failed"));
+          }
+        } else if (channel !== SHELL_CHANNELS.TERMINAL_RESIZE) {
+          // Unknown channel, treat as output
+          process.stdout.write(data);
+        }
+      });
+
+      providerWs.on("open", () => {
+        connected = true;
+        console.log(`\x1b[32mConnected! Press Ctrl+D to exit.\x1b[0m\n`);
+
+        // Set raw mode for proper terminal handling
+        if (process.stdin.isTTY) {
+          try {
+            process.stdin.setRawMode(true);
+          } catch (err) {
+            // Ignore errors setting raw mode
+          }
+        }
+
+        // Always resume stdin and ref it to keep event loop alive
+        process.stdin.resume();
+        process.stdin.ref();
+
+        // Send initial terminal size
+        if (process.stdout.columns && process.stdout.rows) {
+          this.sendResize(providerWs, process.stdout.columns, process.stdout.rows);
+        }
+
+        // Handle terminal resize
+        resizeHandler = () => {
+          this.sendResize(providerWs, process.stdout.columns, process.stdout.rows);
+        };
+        process.stdout.on('resize', resizeHandler);
+
+        // Handle stdin input (exactly like frontend proxy)
+        stdinHandler = (data) => {
+          if (!data || (Buffer.isBuffer(data) && data.length === 0)) return;
+
+          let buffer;
+          if (Buffer.isBuffer(data)) {
+            buffer = data;
+          } else if (data instanceof ArrayBuffer) {
+            buffer = Buffer.from(data);
+          } else if (data instanceof Uint8Array) {
+            buffer = Buffer.from(data);
+          } else if (typeof data === 'string') {
+            buffer = Buffer.from(data, 'utf8');
+          } else {
+            buffer = Buffer.from(String(data), 'utf8');
+          }
+
+          // Handle Ctrl+C (0x03) - send to provider
+          if (buffer.length === 1 && buffer[0] === 0x03) {
+            const channelBuffer = Buffer.allocUnsafe(1);
+            channelBuffer[0] = SHELL_CHANNELS.STDIN;
+            if (providerWs.readyState === WebSocket.OPEN) {
+              providerWs.send(channelBuffer);
+            }
+            return;
+          }
+
+          // Ctrl+D (0x04) - EOF, exit shell
+          if (buffer.length === 1 && buffer[0] === 0x04) {
+            const eofBuffer = Buffer.allocUnsafe(1);
+            eofBuffer[0] = SHELL_CHANNELS.STDIN;
+            if (providerWs.readyState === WebSocket.OPEN) {
+              providerWs.send(eofBuffer);
+            }
+            console.log("\n\x1b[33mExiting shell...\x1b[0m");
+            cleanup();
+            if (!resolved) {
+              resolved = true;
+              resolve();
+            }
+            return;
+          }
+
+          // Handle Ctrl+V (paste)
+          if (buffer.length === 1 && buffer[0] === 0x16) {
+            try {
+              let clipboardText = '';
+              if (process.platform === 'darwin') {
+                clipboardText = execSync('pbpaste', { encoding: 'utf8' });
+              } else if (process.platform === 'win32') {
+                clipboardText = execSync('powershell -command Get-Clipboard', { encoding: 'utf8' });
+              } else {
+                clipboardText = execSync('xclip -selection clipboard -o', { encoding: 'utf8' });
+              }
+
+              if (clipboardText) {
+                this.sendStdinData(providerWs, Buffer.from(clipboardText, 'utf8'));
+              }
+            } catch (err) {
+              // Clipboard not available
+            }
+            return;
+          }
+
+          // Send to provider with channel byte (exactly like frontend)
+          if (providerWs.readyState === WebSocket.OPEN) {
+            try {
+              const channelBuffer = Buffer.allocUnsafe(1 + buffer.length);
+              channelBuffer[0] = SHELL_CHANNELS.STDIN;
+              buffer.copy(channelBuffer, 1);
+              providerWs.send(channelBuffer);
+            } catch (err) {
+              // Ignore send errors
+            }
+          }
+        };
+
+        process.stdin.on('data', stdinHandler);
+
+        // Handle stdin end (prevents unexpected exit)
+        stdinEndHandler = () => {
+          if (providerWs.readyState === WebSocket.OPEN) {
+            // Send EOF to remote
+            const eofBuffer = Buffer.allocUnsafe(1);
+            eofBuffer[0] = SHELL_CHANNELS.STDIN;
+            providerWs.send(eofBuffer);
+          }
+        };
+        process.stdin.on('end', stdinEndHandler);
+      });
+
+      providerWs.on("error", (err) => {
+        console.error("\n\x1b[31mConnection error:\x1b[0m", err.message);
+        cleanup();
+        if (!resolved) {
+          resolved = true;
+          reject(err);
+        }
+      });
+
+      providerWs.on("close", (code, reason) => {
+        const reasonStr = reason ? reason.toString() : '';
+        if (code !== 1000) {
+          console.log(`\n\x1b[33mConnection closed (code: ${code}${reasonStr ? ', reason: ' + reasonStr : ''})\x1b[0m`);
+        }
+        cleanup();
+        if (!resolved) {
+          resolved = true;
+          resolve();
+        }
+      });
+
+      connectionTimeout = setTimeout(() => {
+        if (!connected) {
+          console.error("\n\x1b[31mConnection timeout\x1b[0m");
+          cleanup();
+          if (!resolved) {
+            resolved = true;
+            reject(new Error("Connection timeout"));
+          }
+        }
+      }, 15000);
+
+      // Handle process signals
+      const signalHandler = () => {
+        cleanup();
+        if (!resolved) {
+          resolved = true;
+          resolve();
+        }
+      };
+      process.once('SIGINT', signalHandler);
+      process.once('SIGTERM', signalHandler);
+    });
+  }
+
+  /**
+   * Execute a single command in the container
+   */
+  async executeCommand(providerBaseUrl, dseq, gseq, oseq, service, jwt, command) {
+    return new Promise((resolve, reject) => {
+      // Build command parameters
+      const commandParts = command.trim().split(/\s+/);
+      const commandParams = commandParts
+        .map((c, i) => `&cmd${i}=${encodeURIComponent(c)}`)
+        .join("");
+
+      const wsUrl = `wss://${providerBaseUrl}:8443/lease/${dseq}/${gseq}/${oseq}/shell?stdin=1&tty=1&podIndex=0${commandParams}&service=${encodeURIComponent(service)}`;
+
+      console.log(`\x1b[90mExecuting: ${command}\x1b[0m\n`);
+
+      const providerWs = new WebSocket(wsUrl, {
+        headers: { Authorization: `Bearer ${jwt}` },
+        rejectUnauthorized: false,
+      });
+
+      let connected = false;
+      let resolved = false;
+      let connectionTimeout = null;
+      let stdinHandler = null;
+
+      const cleanup = () => {
+        if (stdinHandler) {
+          process.stdin.removeListener('data', stdinHandler);
+          stdinHandler = null;
+        }
+
+        if (process.stdin.isTTY) {
+          try {
+            process.stdin.setRawMode(false);
+          } catch (err) { }
+        }
+
+        try {
+          process.stdin.pause();
+        } catch (err) { }
+
+        if (connectionTimeout) clearTimeout(connectionTimeout);
+
+        if (providerWs.readyState === WebSocket.OPEN || providerWs.readyState === WebSocket.CONNECTING) {
+          providerWs.close();
+        }
+      };
+
+      // Set up message handler BEFORE open event
+      providerWs.on("message", (msg) => {
+        let data = Buffer.isBuffer(msg) ? msg : Buffer.from(msg);
+        if (data.length === 0) return;
+
+        const channel = data[0];
+
+        if (channel === SHELL_CHANNELS.STDOUT || channel === SHELL_CHANNELS.STDERR) {
+          if (data.length > 1) {
+            process.stdout.write(data.subarray(1));
+          }
+        } else if (channel === SHELL_CHANNELS.RESULT) {
+          cleanup();
+          if (!resolved) {
+            resolved = true;
+            resolve();
+          }
+        } else if (channel === SHELL_CHANNELS.FAILURE) {
+          if (data.length > 1) {
+            process.stderr.write(data.subarray(1));
+          }
+          cleanup();
+          if (!resolved) {
+            resolved = true;
+            reject(new Error("Command failed"));
+          }
+        } else if (channel !== SHELL_CHANNELS.TERMINAL_RESIZE) {
+          process.stdout.write(data);
+        }
+      });
+
       providerWs.on("open", () => {
         connected = true;
 
-        // Siempre activar raw mode porque tty=1 requiere modo interactivo
         if (process.stdin.isTTY) {
           try {
             process.stdin.setRawMode(true);
             process.stdin.setEncoding('utf8');
-          } catch (err) {
-            console.error("Warning: Could not set raw mode:", err.message);
-          }
+          } catch (err) { }
         }
 
         if (process.stdin.isPaused()) {
@@ -128,18 +428,11 @@ export class WebSocketClient {
         stdinHandler = (data) => {
           if (!data || data.length === 0) return;
 
-          let buffer;
-          if (Buffer.isBuffer(data)) {
-            buffer = data;
-          } else if (typeof data === 'string') {
-            buffer = Buffer.from(data, 'utf8');
-          } else {
-            buffer = Buffer.from(data);
-          }
+          let buffer = Buffer.isBuffer(data) ? data : Buffer.from(data, 'utf8');
 
-          // Ctrl+C
+          // Ctrl+C - cancel
           if (buffer.length === 1 && buffer[0] === 0x03) {
-            console.log("\n\n👋 Cancelling...");
+            console.log("\n\x1b[33mCancelled\x1b[0m");
             cleanup();
             if (!resolved) {
               resolved = true;
@@ -155,125 +448,14 @@ export class WebSocketClient {
             return;
           }
 
-          // Detectar Ctrl+V (0x16) o Cmd+V en Mac (secuencia especial)
-          // En Linux/Windows: Ctrl+V = 0x16 (22)
-          // En Mac: Cmd+V puede venir como secuencia de escape
-          if (buffer.length === 1 && buffer[0] === 0x16) {
-            // Ctrl+V detectado - leer clipboard y enviar
-            try {
-              let clipboardText = '';
-              if (process.platform === 'darwin') {
-                // macOS
-                clipboardText = execSync('pbpaste', { encoding: 'utf8' });
-              } else if (process.platform === 'win32') {
-                // Windows
-                clipboardText = execSync('powershell -command Get-Clipboard', { encoding: 'utf8' });
-              } else {
-                // Linux
-                clipboardText = execSync('xclip -selection clipboard -o', { encoding: 'utf8' });
-              }
-              
-              // Enviar cada carácter del texto pegado
-              if (clipboardText) {
-                const pasteBuffer = Buffer.from(clipboardText, 'utf8');
-                for (let i = 0; i < pasteBuffer.length; i++) {
-                  this.sendStdinData(providerWs, Buffer.from([pasteBuffer[i]]));
-                }
-              }
-            } catch (err) {
-              // Si falla el paste, ignorar silenciosamente
-              // O mostrar un mensaje de error
-              console.error('\n⚠️  Could not paste from clipboard:', err.message);
-            }
-            return;
-          }
-
-          // Enviar con byte de canal
           this.sendStdinData(providerWs, buffer);
         };
 
         process.stdin.on('data', stdinHandler);
       });
 
-      providerWs.on("message", (msg) => {
-        let data;
-        if (Buffer.isBuffer(msg)) {
-          data = msg;
-        } else if (msg instanceof ArrayBuffer) {
-          data = Buffer.from(msg);
-        } else {
-          data = Buffer.from(String(msg));
-        }
-
-        if (data.length === 0) return;
-
-        const channel = data[0];
-
-        if (channel === SHELL_CHANNELS.STDOUT || channel === SHELL_CHANNELS.STDERR) {
-          if (data.length > 1) {
-            const output = data.subarray(1);
-            process.stdout.write(output);
-            
-            // Acumular output para detectar prompts de contraseña
-            outputBuffer += output.toString('utf8');
-            
-            // Detectar prompts comunes de contraseña
-            const passwordPrompts = [
-              /password:/i,
-              /enter password:/i,
-              /passphrase:/i,
-              /sudo.*password/i,
-              /\[sudo\] password/i
-            ];
-            
-            const hasPasswordPrompt = passwordPrompts.some(regex => regex.test(outputBuffer));
-            
-            // Si detectamos un prompt de contraseña, el modo raw ya está activo
-            // y los caracteres no se mostrarán automáticamente
-            // El provider debería manejar el echo suppression
-            
-            // Limpiar buffer periódicamente para evitar acumulación
-            if (outputBuffer.length > 1000) {
-              outputBuffer = outputBuffer.slice(-500);
-            }
-          }
-        } else if (channel === SHELL_CHANNELS.RESULT) {
-          if (data.length > 1) {
-            try {
-              const resultData = data.subarray(1);
-              const resultText = resultData.toString('utf8');
-              const result = JSON.parse(resultText);
-              
-              if (result.exit_code !== undefined) {
-                cleanup();
-                if (!resolved) {
-                  resolved = true;
-                  resolve();
-                }
-              }
-            } catch (err) {
-              process.stdout.write(data.subarray(1));
-            }
-          }
-        } else if (channel === SHELL_CHANNELS.FAILURE) {
-          if (data.length > 1) {
-            process.stderr.write(data.subarray(1));
-          }
-          cleanup();
-          if (!resolved) {
-            resolved = true;
-            reject(new Error("Command failed"));
-          }
-        } else if (channel === SHELL_CHANNELS.TERMINAL_RESIZE) {
-          return;
-        } else {
-          // Compatibilidad: si no hay byte de canal, asumir stdout
-          process.stdout.write(data);
-        }
-      });
-
       providerWs.on("error", (err) => {
-        console.error("\nWebSocket error:", err.message);
+        console.error("\n\x1b[31mError:\x1b[0m", err.message);
         cleanup();
         if (!resolved) {
           resolved = true;
@@ -281,20 +463,17 @@ export class WebSocketClient {
         }
       });
 
-      providerWs.on("close", (code, reason) => {
+      providerWs.on("close", (code) => {
         cleanup();
         if (!resolved) {
           resolved = true;
-          if (code === 1000) {
-            resolve();
-          } else {
-            reject(new Error(`Connection closed: ${code} - ${reason}`));
-          }
+          resolve();
         }
       });
 
       connectionTimeout = setTimeout(() => {
         if (!connected) {
+          console.error("\n\x1b[31mConnection timeout\x1b[0m");
           cleanup();
           if (!resolved) {
             resolved = true;
@@ -305,4 +484,3 @@ export class WebSocketClient {
     });
   }
 }
-
